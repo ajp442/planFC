@@ -56,6 +56,7 @@ When a question is answered, it will be deleted from here and incorporated into 
 - How will the payment structure work? Fixed cost? Early sign up discount?
 - Will there be refunds? If so, under what circumstances?
 - How do we handle cash payments?
+- Will we support bringing a guest who does not have an account?
 
 
 ## Decisions
