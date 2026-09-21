@@ -1,6 +1,6 @@
 # planFC — Plan
 
-Status: draft | Last updated: 2026-09-08
+Status: draft | Last updated: 2026-09-21
 
 planFC is a play on words: "FC" stands for Football Club, and "plan" describes what this app helps us do; it helps our Football Club plan pickup games.
 
@@ -15,6 +15,8 @@ We want an app where group members can log in, sign up for games they want to at
 
 Our group currently uses the TeamReach app; it does most of what we want except accepting payments and tracking payments.
 
+The most critical aspect (the reason for this website) is to be transparent with users of all of their past payments and games played.
+This way it will be clear to users to see how much they may owe or how much credit is on their account.
 
 ## Milestones
 Each milestone should be complete and well vetted before moving onto the next milestone.
@@ -32,6 +34,7 @@ Each milestone should be complete and well vetted before moving onto the next mi
   - Being able to create an account with email, google, apple, etc.
   - Be able to delete account
 - The person should have an account profile where they can set their name and profile picture.
+- A user account must include a valid email address.
 
 ### Admin accounts
 - Assign and un-assign admin privileges
@@ -39,6 +42,13 @@ Each milestone should be complete and well vetted before moving onto the next mi
 ### Game creation
 - Games will be created by admins
 - Games can be edited by admins
+- **Required** fields for a game:
+  - Date & Time
+  - Location
+  - Cost (individual cost for a game)
+  - timestamp of creation
+- **Optional** fields for a game:
+  -  limit of players (Max number of players).
 
 ### Game sign-up mechanics
 - Users will be able to view and sign up for games
@@ -55,7 +65,12 @@ Each milestone should be complete and well vetted before moving onto the next mi
 When a question is answered, it will be deleted from here and incorporated into the main plan
 - How will the payment structure work? Fixed cost? Early sign up discount?
 - Will there be refunds? If so, under what circumstances?
+  - Yes, refunds need to be an option. However, this is up to the discretion of the administrators.
+    Details must be documented in a Rules/Payments section of the website with specific examples.
+    **Note:** default behavior is to keep as a credit on the account. at some point we will have to consider credit on
+    accounts as donations to the group.
 - How do we handle cash payments?
+  - This will be a manual process. electronic payment is preferred, but admins must be able to accept cash and document in the app.
 - Will we support bringing a guest who does not have an account?
 
 
