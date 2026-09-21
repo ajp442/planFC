@@ -1,6 +1,6 @@
 # planFC — Plan
 
-Status: draft | Last updated: 2026-09-21
+**Status:** draft | Last updated: 2026-09-21
 
 planFC is a play on words: "FC" stands for Football Club, and "plan" describes what this app helps us do; it helps our Football Club plan pickup games.
 
@@ -15,8 +15,29 @@ We want an app where group members can log in, sign up for games they want to at
 
 Our group currently uses the TeamReach app; it does most of what we want except accepting payments and tracking payments.
 
-The most critical aspect (the reason for this website) is to be transparent with users of all of their past payments and games played.
-This way it will be clear to users to see how much they may owe or how much credit is on their account.
+### Minimum Viable Product (MVP)
+The most critical aspect (the reason for this website) is to be transparent with users of all of their payments and games played.
+This way users can see how much they may owe or how much credit is on their account. A website that can track this information 
+reliably and concisely would meet the minimum requirements.
+
+### Ideal/Final Product
+A fully integrated one-stop-shop solution would be ideal and would include the following:
+- Users would be able to signup for games.
+- Users would be able to view their payment history.
+- Users would be able to view upcoming and past games (including if they played or not).
+- Users can make electronic payments can be made directly from the website, verified and tracked in the database.
+- Users can comment on specific payments (i.e. paying for a friend, donation, etc..).
+- Users can pay on someone else's behalf (show up as credit on another users account).
+- Users can generate reports for games played, and payments made.
+- Periodic (monthly) email notifications sent out with a recap of amount owed or credit on their account.
+- Event driven email notifications for situations that require prompt attention (removal from games if their account is negative).
+- Admins can manually add/remove games
+- Admins can update costs on a game/game basis if needed.
+- Admins can add reoccurring games, this is useful since all the games are usually same time, place, cost, and location.
+- Admins can manually add Users payments.
+- Admins can manually track expenses: field rentals, Jersey's, game ball, Website maintenance, etc...
+- Everything like payments, signups, manual editions, comments, etc... would require a non-editable internal timestamp for when data was
+  entered into the system.
 
 ## Milestones
 Each milestone should be complete and well vetted before moving onto the next milestone.
