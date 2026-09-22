@@ -1,0 +1,95 @@
+:root {
+  --pitch: #0b6b3a;
+  --bg: #f6f7f6;
+  --surface: #ffffff;
+  --text: #161d1a;
+  --muted: #5c6b64;
+  --ok: #17a34a;
+  --bad: #d64545;
+  --border: #dfe4e1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1412;
+    --surface: #18201d;
+    --text: #e8efeb;
+    --muted: #9aa8a1;
+    --border: #2a332f;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  /* Keeps content clear of the notch and home indicator once installed. */
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  width: 100%;
+  max-width: 26rem;
+  padding: 32px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.crest { width: 72px; height: 72px; border-radius: 18px; }
+
+h1 { margin: 16px 0 4px; font-size: 1.75rem; letter-spacing: -0.02em; }
+
+.tagline { margin: 0 0 24px; color: var(--muted); }
+
+.checks { margin: 0 0 24px; padding: 0; list-style: none; text-align: left; }
+
+.checks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9375rem;
+}
+
+.dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.dot.ok { background: var(--ok); }
+.dot.bad { background: var(--bad); }
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pitch);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover { filter: brightness(1.08); }
+
+.hint {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.875rem;
+}

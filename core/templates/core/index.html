@@ -1,0 +1,43 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>planFC</title>
+
+<link rel="manifest" href="{% url 'manifest' %}">
+<meta name="theme-color" content="#0b6b3a">
+
+<!-- iOS ignores the manifest's icons when adding to the home screen and reads
+     this link instead; without it the icon is a screenshot of the page. -->
+<link rel="apple-touch-icon" href="{% static 'icons/icon_180.png' %}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="planFC">
+
+<link rel="icon" href="{% static 'icons/icon_192.png' %}">
+<link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<main>
+  <img class="crest" src="{% static 'icons/icon_192.png' %}" alt="">
+  <h1>planFC</h1>
+  <p class="tagline">Hello, world. The foundation is up.</p>
+
+  <ul class="checks">
+    <li>
+      <span class="dot {% if db_ok %}ok{% else %}bad{% endif %}"></span>
+      Database {% if db_ok %}connected{% else %}unreachable{% endif %}
+    </li>
+    <li><span class="dot" id="sw_dot"></span> <span id="sw_text">Service worker &hellip;</span></li>
+    <li><span class="dot" id="mode_dot"></span> <span id="mode_text">Display mode &hellip;</span></li>
+  </ul>
+
+  <button id="install_button" hidden>Install planFC</button>
+  <p id="ios_hint" class="hint" hidden>
+    To install: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+  </p>
+</main>
+<script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Secrets. .env.example is tracked and must stay free of real values.
+.env
+.env.*
+!.env.example
+
+# Collected by `collectstatic` at container start; rebuilt, never authored.
+staticfiles/
+
+# Member uploads (profile pictures) once they exist.
+media/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Logs and local database files
+*.log
+db.sqlite3

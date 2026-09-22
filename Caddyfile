@@ -1,0 +1,18 @@
+{
+	# The PoC is reached over http://localhost:8080, where browsers already
+	# grant service workers a secure context, so no certificate is needed yet.
+	auto_https off
+}
+
+:80 {
+	encode gzip
+	reverse_proxy web:8000
+}
+
+# Production, once planfc.com resolves here. Caddy obtains and renews the
+# Let's Encrypt certificate on its own; this block is the whole of it.
+#
+# planfc.com {
+# 	encode gzip
+# 	reverse_proxy web:8000
+# }
