@@ -1,6 +1,6 @@
 # planFC — Plan
 
-**Status:** draft | Last updated: 2026-09-21
+**Status:** draft | Last updated: 2026-09-22
 
 planFC is a play on words: "FC" stands for Football Club, and "plan" describes what this app helps us do; it helps our Football Club plan pickup games.
 
@@ -45,9 +45,14 @@ Each milestone should be complete and well vetted before moving onto the next mi
 ### Foundation
 - A mobile-friendly web app (installable as a PWA — home screen icon, no store)
   - Avoids app store developer fees, review cycles on every release, and store payment rules, while still giving members a home screen icon.
-- We need a catchy URL (something like planfc.com if it is available)
-- Need to figure out where/how to host this site.
-- Basic manual and automated testing.
+- We need a catchy URL (something like planfc.com if it is available).
+- We need to figure out how to obtain a certificate from a Certificate Authority so the website is trusted by default browsers.
+- We need to figure out what kind of tech stack would be ideal for our website, or which well maintained container we can leverage.
+  - This would be a relatively low traffic site (maybe a max of 500 users). we typically only have about 30-40 active users.
+- Need to figure out where/how to host this site. (We have a laptop with Ubuntu that we plan to use).
+  - One idea is to use containers to spin up the website as there should be good support for gineric websites.
+  -  CI/CD support is also another reason to use containers, as this can improve testing and delivery using pipelines.
+- Our set up must include unit tests, as this will be easier to implement and maintain right from the start.
 
 ### Login system
 - A person should be able to create an account.
@@ -55,6 +60,8 @@ Each milestone should be complete and well vetted before moving onto the next mi
   - Being able to create an account with email, google, apple, etc.
   - Be able to delete account
 - The person should have an account profile where they can set their name and profile picture.
+- A user login using installable PWA must support push notifications.
+- There must be a way for users to not have to log in every time to PWA.
 - A user account must include a valid email address.
 
 ### Admin accounts
