@@ -17,12 +17,16 @@ sudo apt install docker-compose-v2
 
 That gives you `docker compose` (a space, not a hyphen).
 
-## Run it
+## Run it from a clone (development)
 
 ```
 cp .env.example .env          # already done; regenerate secrets if you like
 docker compose up --build
 ```
+
+`compose.override.yaml` is merged in automatically: it builds from source,
+bind-mounts the tree and runs `runserver` with `DEBUG` on. If your uid is not
+1000 (`id -u`), set `APP_UID` in `.env` or the container cannot write into the tree.
 
 Then open <http://localhost:8080>. The page reports three things: database
 connectivity, service worker registration, and whether you are running in a
@@ -30,6 +34,22 @@ browser tab or installed.
 
 To install it, open that URL in Chrome and use the **Install planFC** button, which
 appears once Chrome judges the app installable.
+
+## Run it without a clone
+
+Each version tag (`git tag v0.1.0 && git push origin v0.1.0`) publishes the image
+to `ghcr.io/ajp442/planfc` for amd64 and arm64. Anyone can then run:
+
+```
+curl -O https://raw.githubusercontent.com/ajp442/planFC/main/compose.yaml
+curl -o .env https://raw.githubusercontent.com/ajp442/planFC/main/.env.example
+# edit .env: real DJANGO_SECRET_KEY and POSTGRES_PASSWORD, your hostnames
+docker compose up -d
+```
+
+That runs gunicorn with `DEBUG` off. To upgrade: `docker compose pull && docker compose up -d`.
+GHCR makes a new package private, so after the first publish set its visibility to
+public under the package settings on GitHub.
 
 ## Run the tests
 
@@ -41,9 +61,10 @@ docker compose run --rm web python manage.py test
 
 | Path | Purpose |
 |---|---|
-| `compose.yaml` | Three services: `db` (Postgres 17), `web` (Django), `caddy` (reverse proxy) |
-| `Dockerfile` | The `web` image. Runs gunicorn; Compose overrides it with `runserver` for dev |
-| `Caddyfile` | Proxies to Django. Contains the commented production block for planfc.com |
+| `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline) |
+| `compose.override.yaml` | Dev overlay: build from source, bind mount, `runserver` |
+| `Dockerfile` | The `web` image. Migrates, then runs gunicorn; static files baked in |
+| `.github/workflows/publish.yml` | Builds and pushes the image on version tags |
 | `config/` | Django settings, URLs, WSGI entrypoint |
 | `core/` | The hello-world view, health check, PWA templates, tests |
 | `static/` | Stylesheet, install-prompt JavaScript, placeholder icons |
@@ -57,7 +78,8 @@ docker compose run --rm web python manage.py test
   secure context, so desktop Chrome installs fine, but a phone reaching this laptop
   over the LAN gets plain HTTP and will refuse to register the service worker.
   Options: a Cloudflare Tunnel, Tailscale, or waiting until planfc.com resolves to
-  a real host with a real certificate.
+  a real host with a real certificate. For the latter, set `SITE_ADDRESS=planfc.com`,
+  `HTTP_PORT=80` and `HTTPS_PORT=443` in `.env`; Caddy handles the certificate.
 - **The Postgres volume is not a backup.** `pgdata` survives `docker compose down`,
   but not `down -v`, and not a dead disk. Before any real payment data exists, we
   need scheduled `pg_dump` output written somewhere off this machine.

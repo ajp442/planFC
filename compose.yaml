@@ -1,14 +1,16 @@
-# Proof of concept: one command brings up Postgres, Django and Caddy.
-# Requires Compose v2 ("docker compose", not the EOL "docker-compose" v1).
+# The whole deployment in one file: download it beside a .env and run
+# `docker compose up -d`. It pulls the published image, so no clone is needed.
+# In a clone, compose.override.yaml is merged in on top to build from source.
+# Requires Compose v2.23+ ("docker compose", not the EOL "docker-compose" v1).
 name: planfc
 
 services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-planfc}
+      POSTGRES_USER: ${POSTGRES_USER:-planfc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     # A named volume, never the container filesystem: the container is
     # disposable, the ledger is not. Note that this is still not a backup.
     volumes:
@@ -21,25 +23,19 @@ services:
     restart: unless-stopped
 
   web:
-    build: .
-    # runserver (not gunicorn) so edits on the host reload live. The image's
-    # CMD is the production path; this override is the dev path.
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+    # Published by .github/workflows/publish.yml on each version tag. Set
+    # PLANFC_VERSION (e.g. 0.1.0) to pin a release instead of tracking latest.
+    image: ghcr.io/ajp442/planfc:${PLANFC_VERSION:-latest}
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: ${DJANGO_DEBUG}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8080}
+      POSTGRES_DB: ${POSTGRES_DB:-planfc}
+      POSTGRES_USER: ${POSTGRES_USER:-planfc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
-    volumes:
-      - .:/app
     # Without the healthcheck gate, migrate races Postgres's first-boot
     # initialisation and the container exits before the database is listening.
     depends_on:
@@ -49,15 +45,34 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    environment:
+      # ":80" serves plain HTTP on any hostname, which is enough for localhost,
+      # where browsers already grant service workers a secure context. A domain
+      # name (planfc.com) makes Caddy obtain and renew a Let's Encrypt
+      # certificate on its own; publish ports 80 and 443 for that.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:
-      - "8080:80"
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       - web
     restart: unless-stopped
+
+configs:
+  # Inline so this file is the only one to download. $$ keeps Compose from
+  # interpolating it; Caddy reads {$SITE_ADDRESS} from its own environment.
+  caddyfile:
+    content: |
+      {$$SITE_ADDRESS} {
+      	encode gzip
+      	reverse_proxy web:8000
+      }
 
 volumes:
   pgdata:

@@ -6,3 +6,5 @@ __pycache__/
 *.py[cod]
 .venv/
 staticfiles/
+.github/
+compose*.yaml

@@ -1,0 +1,22 @@
+# Dev only. Compose merges this over compose.yaml automatically when both sit
+# in the same directory, so in a clone `docker compose up --build` runs the
+# source tree instead of the published image. Downloads of compose.yaml alone
+# never see it.
+services:
+  web:
+    # A local name, so a dev build never shadows the pulled ghcr.io image.
+    image: planfc-web:dev
+    pull_policy: build
+    build:
+      context: .
+      args:
+        APP_UID: ${APP_UID:-1000}
+    # runserver (not gunicorn) so edits on the host reload live.
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_DEBUG: "1"
+    volumes:
+      - .:/app
