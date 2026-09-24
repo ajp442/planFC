@@ -270,7 +270,8 @@ still stands: bump it whenever the shell changes.
 
 ### 4.4 The page script (`static/js/app.js`)
 
-A single IIFE with four jobs:
+The whole file is wrapped in an IIFE (immediately invoked function expression),
+which keeps its variables out of the global scope. It has four jobs:
 
 1. **Register** `/sw.js` and report the result and scope.
 2. **Detect display mode.** It checks each `display-mode` media query by name,
