@@ -11,6 +11,33 @@ an existing file don't need an update.
 
 ---
 
+## Contents
+
+- [1. The system at a glance](#1-the-system-at-a-glance)
+- [2. Repository layout](#2-repository-layout)
+- [3. The Django application](#3-the-django-application)
+  - [3.1 Settings (`config/settings.py`)](#31-settings-configsettingspy)
+  - [3.2 URL routing (`config/urls.py`)](#32-url-routing-configurlspy)
+  - [3.3 Views (`core/views.py`)](#33-views-coreviewspy)
+  - [3.4 Models and migrations](#34-models-and-migrations)
+  - [3.5 Tests (`core/tests.py`)](#35-tests-coretestspy)
+- [4. The client side (PWA)](#4-the-client-side-pwa)
+  - [4.1 The page (`core/templates/core/index.html`)](#41-the-page-coretemplatescoreindexhtml)
+  - [4.2 The manifest (`core/templates/pwa/manifest.webmanifest`)](#42-the-manifest-coretemplatespwamanifestwebmanifest)
+  - [4.3 The service worker (`core/templates/pwa/sw.js`)](#43-the-service-worker-coretemplatespwaswjs)
+  - [4.4 The page script (`static/js/app.js`)](#44-the-page-script-staticjsappjs)
+  - [4.5 Styling and icons](#45-styling-and-icons)
+- [5. Containers and deployment](#5-containers-and-deployment)
+  - [5.1 The image (`Dockerfile`)](#51-the-image-dockerfile)
+  - [5.2 Compose: one file for deployers, an overlay for developers](#52-compose-one-file-for-deployers-an-overlay-for-developers)
+  - [5.3 Caddy and TLS](#53-caddy-and-tls)
+  - [5.4 Configuration surface (`.env`)](#54-configuration-surface-env)
+  - [5.5 Release pipeline (`.github/workflows/publish.yml`)](#55-release-pipeline-githubworkflowspublishyml)
+- [6. Request lifecycle, end to end](#6-request-lifecycle-end-to-end)
+- [7. Known gaps and things to watch](#7-known-gaps-and-things-to-watch)
+
+---
+
 ## 1. The system at a glance
 
 planFC is a server-rendered Django application backed by PostgreSQL. It runs behind
@@ -345,7 +372,7 @@ The `.gitignore` excludes `.env` and `.env.*` but not `.env.example`, and
 - It authenticates with the built-in `GITHUB_TOKEN` (`packages: write`), and uses
   the GitHub Actions layer cache.
 
-The pipeline doesn't run tests yet. See §7.
+The pipeline doesn't run tests yet. See [§7](#7-known-gaps-and-things-to-watch).
 
 ---
 
@@ -395,4 +422,4 @@ the Foundation is meant to prove.
 - **Security headers for HTTPS** (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
   HSTS) aren't set yet. They should turn on once the site runs on a real domain.
 - **Single app.** `core` is a placeholder. Put real features in their own apps
-  (§2) so the ledger's models and tests stay separate.
+  ([§2](#2-repository-layout)) so the ledger's models and tests stay separate.
