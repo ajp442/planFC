@@ -1,6 +1,7 @@
 # planFC
 
-Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones.
+Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones,
+and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code is designed.
 
 This repository currently holds the **Foundation proof of concept**: a Django app
 behind Caddy with Postgres, installable as a PWA, running under Docker Compose.
