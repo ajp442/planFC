@@ -35,6 +35,13 @@ an existing file don't need an update.
   - [5.5 Release pipeline (`.github/workflows/publish.yml`)](#55-release-pipeline-githubworkflowspublishyml)
 - [6. Request lifecycle, end to end](#6-request-lifecycle-end-to-end)
 - [7. Known gaps and things to watch](#7-known-gaps-and-things-to-watch)
+- [Appendix A. What is a service worker?](#appendix-a-what-is-a-service-worker)
+  - [A.1 The idea](#a1-the-idea)
+  - [A.2 How it differs from ordinary page JavaScript](#a2-how-it-differs-from-ordinary-page-javascript)
+  - [A.3 Lifecycle](#a3-lifecycle)
+  - [A.4 Common caching strategies](#a4-common-caching-strategies)
+  - [A.5 Why a PWA needs one](#a5-why-a-pwa-needs-one)
+  - [A.6 Pitfalls](#a6-pitfalls)
 
 ---
 
@@ -235,6 +242,9 @@ so Android can crop it to any launcher shape.
 
 ### 4.3 The service worker (`core/templates/pwa/sw.js`)
 
+New to service workers? [Appendix A](#appendix-a-what-is-a-service-worker) explains what they are and how
+their lifecycle works. This section covers only planFC's.
+
 It follows the standard *app shell* lifecycle:
 
 1. **install**: pre-cache `SHELL` (CSS, JS, one icon) into a cache named
@@ -423,3 +433,104 @@ the Foundation is meant to prove.
   HSTS) aren't set yet. They should turn on once the site runs on a real domain.
 - **Single app.** `core` is a placeholder. Put real features in their own apps
   ([§2](#2-repository-layout)) so the ledger's models and tests stay separate.
+
+---
+
+## Appendix A. What is a service worker?
+
+This appendix is background for [§4.3](#43-the-service-worker-coretemplatespwaswjs). It
+describes service workers in general. §4.3 describes planFC's.
+
+### A.1 The idea
+
+A service worker is a JavaScript file that the browser installs and runs
+**separately from any web page**. Once installed for a site, it sits **between that
+site's pages and the network**. Every request the pages make passes through it: the
+page itself, stylesheets, scripts, images and API calls. For each request it
+decides what to do. It can pass the request to the network, answer it from a local
+cache, or build a response itself.
+
+```mermaid
+flowchart LR
+    page["Page<br/>(index.html, app.js)"] -- "every request" --> sw["Service worker<br/>(sw.js)"]
+    sw -- "cache hit" --> cache[("Cache Storage")]
+    sw -- "cache miss / network-first" --> net["Network → Caddy → Django"]
+```
+
+### A.2 How it differs from ordinary page JavaScript
+
+- **It runs in its own background thread.** It can't touch the page's HTML (there
+  is no `document`). It talks to pages only by answering their requests and
+  exchanging messages.
+- **It outlives the page.** It stays registered after the tab closes. The browser
+  starts it when there's an event to handle and stops it again when it's idle, so
+  it can't keep anything in memory between events. Anything it needs to keep goes
+  in Cache Storage or IndexedDB.
+- **It's event-driven.** Its code is a set of handlers: `install`, `activate` and
+  `fetch` for the lifecycle, and `push`, `notificationclick` and `sync` for
+  background features.
+- **It needs a secure context:** HTTPS, or `http://localhost` during
+  development. Something that can intercept and rewrite every request on a site
+  would be dangerous if an attacker could inject it over plain HTTP, so browsers
+  refuse to register one otherwise.
+- **It has a scope.** It controls only pages at or below the path it was served
+  from. A worker at `/sw.js` controls the whole site. A worker at
+  `/static/sw.js` could control only `/static/*`.
+
+### A.3 Lifecycle
+
+1. **Register.** A page calls `navigator.serviceWorker.register("/sw.js")`.
+2. **Install.** The browser downloads the file and fires `install`. The worker
+   usually pre-caches the files the app needs to start (the "app shell"). If any of
+   them fails to download, installation fails and the previous worker, if any,
+   stays in charge.
+3. **Wait.** By default a new worker waits until every tab using the old one has
+   closed, so two versions never serve the same page. `self.skipWaiting()` skips
+   this wait.
+4. **Activate.** The new worker takes control and fires `activate`, which is where
+   old caches are deleted. `self.clients.claim()` makes it control already-open
+   tabs right away instead of from their next load.
+5. **Handle events.** From here on it receives a `fetch` event for every request
+   in its scope, plus any `push` or `sync` events.
+6. **Update.** On navigation, and at least once every 24 hours, the browser
+   re-downloads the worker file and compares it byte for byte with the installed
+   one. If they differ, the new version goes through install, wait and activate.
+
+### A.4 Common caching strategies
+
+| Strategy | Behaviour | Good for |
+|---|---|---|
+| Network-first | Try the network; fall back to the cache when offline | Pages whose content changes (game lists, balances) |
+| Cache-first | Serve from the cache; use the network only on a miss | Static files whose URL changes when their content does (hashed) |
+| Stale-while-revalidate | Serve from the cache now, refresh the cache in the background | Content where being slightly out of date is fine |
+| Network-only | Don't intercept | Anything that changes data (POST, PUT, DELETE) |
+
+planFC uses network-first for pages, cache-first for static files and network-only
+for anything that isn't a GET.
+
+### A.5 Why a PWA needs one
+
+- **Installability.** Chrome and Android offer "Install app" only when the site has
+  a web app manifest, a registered service worker and a secure context. iOS lets
+  you add any site to the home screen, but the service worker is still what gives
+  the installed app its offline behaviour.
+- **Offline and speed.** Answering from a local cache makes the app open instantly
+  and keeps it usable on a bad connection.
+- **Push notifications.** A push message is delivered as a `push` event to the
+  service worker, which can show a notification even while the app is closed.
+  PLAN.md's Login milestone depends on this.
+
+### A.6 Pitfalls
+
+- **Old app versions that won't go away.** A worker that keeps serving an old
+  cached copy of the app, and never replaces it, is the classic PWA bug. It is
+  easy to miss in development, where hard reloads bypass the worker. Change the
+  worker file whenever the shell changes, and delete old caches in `activate`.
+- **Caching private data.** Cache Storage belongs to the browser profile, not to
+  the logged-in user. Pages cached for one member can be shown offline to the
+  next person who uses the same device. See
+  [§7](#7-known-gaps-and-things-to-watch).
+- **Debugging.** Chrome DevTools → *Application* → *Service workers* and *Cache
+  storage* show the installed worker and its caches, and can unregister it or
+  clear them. On iOS the equivalent is Safari's Web Inspector connected to the
+  phone.
