@@ -1,0 +1,11 @@
+{
+  "name": "planfc-e2e",
+  "private": true,
+  "description": "Browser tests run against the built image; see run.sh",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

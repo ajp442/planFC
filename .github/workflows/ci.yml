@@ -1,0 +1,106 @@
+# Tests every pull request and push to main against the built image, and
+# publishes to ghcr.io/ajp442/planfc only when a version tag is pushed
+# (git tag v0.1.0 && git push origin v0.1.0) and those same tests pass.
+# Pushes to main publish nothing, so `latest` only ever moves on a deliberate
+# release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # compose.yaml runs ghcr.io/ajp442/planfc:${PLANFC_VERSION}, so tagging
+      # the local build :ci makes the deployer's compose file run it unchanged.
+      PLANFC_VERSION: ci
+      DJANGO_SECRET_KEY: ci-only-not-a-secret
+      POSTGRES_PASSWORD: ci-only-not-a-secret
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
+      # amd64 only, loaded into the runner's Docker rather than pushed. The
+      # publish job's amd64 build reuses these layers from the cache.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: ghcr.io/ajp442/planfc:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # -f compose.yaml alone: the dev override would build from source and
+      # bind-mount the tree, and the point is to test the image as shipped.
+      - name: Django tests inside the image
+        run: docker compose -f compose.yaml run --rm web python manage.py test --noinput
+
+      - name: Start the stack
+        run: |
+          docker compose -f compose.yaml up -d
+          timeout 90 sh -c 'until curl -fsS http://localhost:8080/healthz; do sleep 2; done'
+
+      - name: Browser tests (Android Chrome and iOS Safari engines)
+        run: ./e2e/run.sh
+
+      - name: Container logs
+        if: failure()
+        run: docker compose -f compose.yaml logs
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # QEMU lets the amd64 runner build the arm64 image too (Raspberry Pi,
+      # ARM cloud hosts).
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # v1.2.3 is tagged 1.2.3, 1.2 and latest. The image name is written out
+      # because GHCR requires lowercase and the repository is "planFC".
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/ajp442/planfc
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
