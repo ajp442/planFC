@@ -72,8 +72,9 @@ Emulation checks the service worker, manifest, icons and offline cache under bot
 engines. It can't check installing or standalone mode, so try those on a real
 phone before a release.
 
-CI (`.github/workflows/ci.yml`) runs both suites against the built image on every
-pull request and push to `main`. A version tag publishes the image only if they pass.
+CI (`.github/workflows/ci.yml`) runs both suites against the built image, on amd64
+and arm64 runners, for every pull request and push to `main`. A version tag
+publishes the image only if they pass on both.
 
 ## What is here
 

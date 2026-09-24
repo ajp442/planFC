@@ -406,22 +406,28 @@ The `.gitignore` excludes `.env` and `.env.*` but not `.env.example`, and
 
 ### 5.5 CI and release pipeline (`.github/workflows/ci.yml`)
 
-One workflow with two jobs. `publish` runs only when `test` passes, so an image
-reaches GHCR only after that source has been tested as an image.
+One workflow with two jobs. `test` runs once per published architecture, and
+`publish` runs only when both pass, so an image reaches GHCR only after that
+source has been tested as an image on amd64 and on arm64.
 
 ```mermaid
 flowchart LR
-    trigger["PR, push to main,<br/>or tag v*.*.*"] --> build["Build amd64 image<br/>(loaded, not pushed)"]
+    trigger["PR, push to main,<br/>or tag v*.*.*"] --> build["Build image on amd64<br/>and arm64 runners<br/>(loaded, not pushed)"]
     build --> unit["manage.py test<br/>inside the image"]
     unit --> up["compose up,<br/>wait for /healthz"]
     up --> e2e["Playwright:<br/>android + ios"]
     e2e -- "tag only" --> publish["Build amd64 + arm64,<br/>push to GHCR"]
 ```
 
-**`test`** runs on every pull request, every push to `main` and every version tag:
+**`test`** runs on every pull request, every push to `main` and every version tag.
+A matrix runs it twice, each time on a native runner: `ubuntu-latest` (amd64) and
+`ubuntu-24.04-arm` (arm64, free for public repositories). Under QEMU on one runner,
+the arm64 browser tests would run many times slower. `fail-fast: false` lets one
+architecture finish when the other fails, so a failure shows whether it is specific
+to one architecture.
 
-- Buildx builds the image for amd64 only. It is loaded into the runner's Docker as
-  `ghcr.io/ajp442/planfc:ci`, not pushed.
+- Buildx builds the image for the runner's own architecture. It is loaded into the
+  runner's Docker as `ghcr.io/ajp442/planfc:ci`, not pushed.
 - `PLANFC_VERSION=ci` makes the deployer's own `compose.yaml` run that image
   unchanged. It is passed as `-f compose.yaml` alone, because the dev override
   would build from source and bind-mount the tree, which defeats the point of
@@ -433,7 +439,8 @@ flowchart LR
   `http://localhost:8080/healthz` through Caddy until it answers, for up to 90 seconds.
 - `e2e/run.sh` runs the browser tests from [§3.5](#35-tests-coretestspy).
 - On failure the job prints the container logs and uploads the Playwright report
-  and traces as the `playwright-report` artifact, kept for 14 days.
+  and traces as the `playwright-report-<arch>` artifact, kept for 14 days. The
+  Playwright image is multi-arch, so `run.sh` is the same on both runners.
 - Secrets are fixed, throwaway values set in the workflow, since the stack
   exists only for the length of the job.
 
@@ -445,8 +452,10 @@ publish nothing, so `latest` moves only on a deliberate release.
   name is lowercase because GHCR requires it.
 - It authenticates with the built-in `GITHUB_TOKEN`. Only this job gets
   `packages: write`, so pull requests run with read-only permissions.
-- Both jobs share the GitHub Actions layer cache, so the published amd64 image is
-  built from the same cached layers the `test` job ran.
+- Each `test` run writes its layers to its own GitHub Actions cache scope
+  (`amd64`, `arm64`); one shared scope would have each run overwrite the other's
+  index. `publish` reads both scopes, so both published images reuse the layers
+  that were tested and QEMU has little left to build.
 
 ---
 
@@ -478,10 +487,6 @@ This is what happens when someone opens the app for the first time:
 These come from reading the code against PLAN.md. None of them is a bug in what
 the Foundation is meant to prove.
 
-- **CI tests only the amd64 image.** The arm64 image is published without ever
-  having run. It is pure Python on the same base image, so the risk is small. Still,
-  running the `test` job on GitHub's `ubuntu-24.04-arm` runners as well would
-  close the gap.
 - **Emulation isn't a phone.** The browser tests ([§3.5](#35-tests-coretestspy))
   can't install the app, enter standalone display mode or reproduce iOS storage
   eviction and push rules. They also can't check the offline reload on WebKit.

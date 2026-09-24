@@ -15,8 +15,19 @@ permissions:
   contents: read
 
 jobs:
+  # Once per published architecture, each on a native runner: arm64 under
+  # QEMU would run the browser tests many times slower.
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    name: test (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     env:
       # compose.yaml runs ghcr.io/ajp442/planfc:${PLANFC_VERSION}, so tagging
       # the local build :ci makes the deployer's compose file run it unchanged.
@@ -28,15 +39,16 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
 
-      # amd64 only, loaded into the runner's Docker rather than pushed. The
-      # publish job's amd64 build reuses these layers from the cache.
+      # The runner's own architecture, loaded into its Docker rather than
+      # pushed. One cache scope per architecture, since two jobs writing the
+      # same scope would each overwrite the other's index; publish reads both.
       - uses: docker/build-push-action@v7
         with:
           context: .
           load: true
           tags: ghcr.io/ajp442/planfc:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
 
       # -f compose.yaml alone: the dev override would build from source and
       # bind-mount the tree, and the point is to test the image as shipped.
@@ -58,7 +70,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.arch }}
           path: |
             e2e/playwright-report/
             e2e/test-results/
@@ -102,5 +114,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # The layers the test jobs built and tested, so QEMU has little or
+          # nothing left to run for arm64.
+          cache-from: |
+            type=gha,scope=amd64
+            type=gha,scope=arm64
