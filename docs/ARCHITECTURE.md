@@ -242,8 +242,9 @@ so Android can crop it to any launcher shape.
 
 ### 4.3 The service worker (`core/templates/pwa/sw.js`)
 
-New to service workers? [Appendix A](#appendix-a-what-is-a-service-worker) explains what they are and how
-their lifecycle works. This section covers only planFC's.
+New to service workers? [Appendix A](#appendix-a-what-is-a-service-worker)
+explains what they are and how their lifecycle works. This section covers only
+planFC's service worker.
 
 It follows the standard *app shell* lifecycle:
 
@@ -438,8 +439,8 @@ the Foundation is meant to prove.
 
 ## Appendix A. What is a service worker?
 
-This appendix is background for [§4.3](#43-the-service-worker-coretemplatespwaswjs). It
-describes service workers in general. §4.3 describes planFC's.
+This appendix is background for [§4.3](#43-the-service-worker-coretemplatespwaswjs).
+It describes service workers in general. §4.3 describes planFC's service worker.
 
 ### A.1 The idea
 
