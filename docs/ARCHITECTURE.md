@@ -32,7 +32,7 @@ an existing file don't need an update.
   - [5.2 Compose: one file for deployers, an overlay for developers](#52-compose-one-file-for-deployers-an-overlay-for-developers)
   - [5.3 Caddy and TLS](#53-caddy-and-tls)
   - [5.4 Configuration surface (`.env`)](#54-configuration-surface-env)
-  - [5.5 Release pipeline (`.github/workflows/publish.yml`)](#55-release-pipeline-githubworkflowspublishyml)
+  - [5.5 CI and release pipeline (`.github/workflows/ci.yml`)](#55-ci-and-release-pipeline-githubworkflowsciyml)
 - [6. Request lifecycle, end to end](#6-request-lifecycle-end-to-end)
 - [7. Known gaps and things to watch](#7-known-gaps-and-things-to-watch)
 - [Appendix A. What is a service worker?](#appendix-a-what-is-a-service-worker)
@@ -75,7 +75,7 @@ flowchart LR
 | Static files | WhiteNoise, baked into the image | `config/settings.py`, `Dockerfile` |
 | Database | PostgreSQL 17 | `compose.yaml` (`db` service) |
 | Client | Plain HTML/CSS/JS, service worker, manifest | `core/templates/`, `static/` |
-| Delivery | GitHub Actions → GHCR, multi-arch | `.github/workflows/publish.yml` |
+| Delivery | GitHub Actions: test the image, then push to GHCR, multi-arch | `.github/workflows/ci.yml` |
 
 There is no JavaScript build step, no frontend framework and no task queue yet.
 Every piece listed above is something the Foundation milestone needs. Nothing is
@@ -112,7 +112,8 @@ there speculatively.
 ├── compose.yaml            Production-shaped deployment, standalone
 ├── compose.override.yaml   Dev overlay, auto-merged in a clone
 ├── .env.example            Template for the only file a deployer edits
-└── .github/workflows/publish.yml
+├── e2e/                    Playwright browser tests in emulated Android and iOS devices
+└── .github/workflows/ci.yml   Tests the built image; publishes it on version tags
 ```
 
 Django convention splits the *project* (`config/`, which holds settings and wiring)
@@ -213,6 +214,35 @@ Current coverage is structural, not behavioural:
 
 These tests pin down the PWA installability requirements. They are easy to break
 without noticing, and a break only shows up on a phone.
+
+**Browser tests (`e2e/`).** The test client never runs JavaScript, so it can't
+see whether the service worker actually registers, caches or serves offline.
+Playwright covers that against a running stack (Caddy → gunicorn → Postgres), in
+two emulated devices:
+
+- `android`: a Pixel 7 on Chromium, the engine in Android Chrome.
+- `ios`: an iPhone 15 on WebKit, the engine in iOS Safari.
+
+Emulation sets the viewport, pixel ratio, touch, user agent and (Chromium only)
+mobile layout. The engines are desktop Linux builds, not the phone browsers
+themselves. `pwa.spec.js` checks on both devices that:
+
+- the page renders with the database connected;
+- the service worker registers with whole-site scope and takes control;
+- the manifest, each of its icons, and the `apple-touch-icon` are served;
+- `/` lands in the cache;
+- `app.js` reports a browser tab;
+- the Add to Home Screen hint appears on iOS only.
+
+The Android project also reloads the page offline and expects it from the cache.
+The iOS project skips that test because Playwright's WebKit fails an offline
+navigation before the service worker sees it.
+
+`e2e/run.sh` runs the suite inside Microsoft's Playwright image
+(`mcr.microsoft.com/playwright`), which ships the browsers and their system
+libraries, so it needs only Docker. The image tag in `run.sh` must match the
+`@playwright/test` version in `package.json`. `.dockerignore` keeps `e2e/` out of
+the `web` image.
 
 ---
 
@@ -374,17 +404,49 @@ and its default. Only `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD` are required.
 The `.gitignore` excludes `.env` and `.env.*` but not `.env.example`, and
 `.dockerignore` keeps `.env` out of the image.
 
-### 5.5 Release pipeline (`.github/workflows/publish.yml`)
+### 5.5 CI and release pipeline (`.github/workflows/ci.yml`)
 
-- **Trigger:** pushing a tag `v*.*.*` only. Pushes to `main` publish nothing, so
-  `latest` moves only on a deliberate release.
+One workflow with two jobs. `publish` runs only when `test` passes, so an image
+reaches GHCR only after that source has been tested as an image.
+
+```mermaid
+flowchart LR
+    trigger["PR, push to main,<br/>or tag v*.*.*"] --> build["Build amd64 image<br/>(loaded, not pushed)"]
+    build --> unit["manage.py test<br/>inside the image"]
+    unit --> up["compose up,<br/>wait for /healthz"]
+    up --> e2e["Playwright:<br/>android + ios"]
+    e2e -- "tag only" --> publish["Build amd64 + arm64,<br/>push to GHCR"]
+```
+
+**`test`** runs on every pull request, every push to `main` and every version tag:
+
+- Buildx builds the image for amd64 only. It is loaded into the runner's Docker as
+  `ghcr.io/ajp442/planfc:ci`, not pushed.
+- `PLANFC_VERSION=ci` makes the deployer's own `compose.yaml` run that image
+  unchanged. It is passed as `-f compose.yaml` alone, because the dev override
+  would build from source and bind-mount the tree, which defeats the point of
+  testing the shipped image.
+- `docker compose run --rm web python manage.py test` runs the Django suite inside
+  the image against the Compose Postgres, with `DEBUG` off and gunicorn's settings,
+  just as in production.
+- `docker compose up -d` starts the whole stack. The job polls
+  `http://localhost:8080/healthz` through Caddy until it answers, for up to 90 seconds.
+- `e2e/run.sh` runs the browser tests from [§3.5](#35-tests-coretestspy).
+- On failure the job prints the container logs and uploads the Playwright report
+  and traces as the `playwright-report` artifact, kept for 14 days.
+- Secrets are fixed, throwaway values set in the workflow, since the stack
+  exists only for the length of the job.
+
+**`publish`** runs on a tag `v*.*.*` only, after `test` passes. Pushes to `main`
+publish nothing, so `latest` moves only on a deliberate release.
+
 - Buildx plus QEMU build **linux/amd64 and linux/arm64** (Raspberry Pi, ARM VPS).
 - `docker/metadata-action` tags `v1.2.3` as `1.2.3`, `1.2` and `latest`. The image
   name is lowercase because GHCR requires it.
-- It authenticates with the built-in `GITHUB_TOKEN` (`packages: write`), and uses
-  the GitHub Actions layer cache.
-
-The pipeline doesn't run tests yet. See [§7](#7-known-gaps-and-things-to-watch).
+- It authenticates with the built-in `GITHUB_TOKEN`. Only this job gets
+  `packages: write`, so pull requests run with read-only permissions.
+- Both jobs share the GitHub Actions layer cache, so the published amd64 image is
+  built from the same cached layers the `test` job ran.
 
 ---
 
@@ -416,9 +478,15 @@ This is what happens when someone opens the app for the first time:
 These come from reading the code against PLAN.md. None of them is a bug in what
 the Foundation is meant to prove.
 
-- **No CI test run.** The workflow publishes images but never runs
-  `manage.py test`. PLAN.md's Foundation exit criterion ("deploys through CI")
-  implies a test job that gates publishing.
+- **CI tests only the amd64 image.** The arm64 image is published without ever
+  having run. It is pure Python on the same base image, so the risk is small. Still,
+  running the `test` job on GitHub's `ubuntu-24.04-arm` runners as well would
+  close the gap.
+- **Emulation isn't a phone.** The browser tests ([§3.5](#35-tests-coretestspy))
+  can't install the app, enter standalone display mode or reproduce iOS storage
+  eviction and push rules. They also can't check the offline reload on WebKit.
+  Before each release, install the app on a real Android and iPhone, for example
+  over a Cloudflare tunnel.
 - **No backups.** `pgdata` is a volume, not a backup. PLAN.md requires a scheduled
   `pg_dump` off-host, plus a restore that has actually been tested, before any real
   payment data exists.
