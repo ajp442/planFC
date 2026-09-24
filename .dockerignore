@@ -8,3 +8,5 @@ __pycache__/
 staticfiles/
 .github/
 compose*.yaml
+# Browser tests run against the image from outside; they never ship in it.
+e2e/

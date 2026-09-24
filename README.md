@@ -1,6 +1,7 @@
 # planFC
 
-Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones.
+Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones,
+and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code is designed.
 
 This repository currently holds the **Foundation proof of concept**: a Django app
 behind Caddy with Postgres, installable as a PWA, running under Docker Compose.
@@ -37,7 +38,7 @@ appears once Chrome judges the app installable.
 
 ## Run it without a clone
 
-Each version tag (`git tag v0.1.0 && git push origin v0.1.0`) publishes the image
+Each version tag (`git tag v0.1.0 && git push origin v0.1.0`) whose tests pass publishes the image
 to `ghcr.io/ajp442/planfc` for amd64 and arm64. Anyone can then run:
 
 ```
@@ -57,6 +58,24 @@ public under the package settings on GitHub.
 docker compose run --rm web python manage.py test
 ```
 
+The browser tests drive the running stack in emulated phones: a Pixel 7 on
+Chromium (Android Chrome's engine) and an iPhone 15 on WebKit (iOS Safari's). With
+`docker compose up` running:
+
+```
+./e2e/run.sh                  # both devices
+./e2e/run.sh --project ios    # one device
+```
+
+This needs only Docker, because the browsers come in Microsoft's Playwright image.
+Emulation checks the service worker, manifest, icons and offline cache under both
+engines. It can't check installing or standalone mode, so try those on a real
+phone before a release.
+
+CI (`.github/workflows/ci.yml`) runs both suites against the built image, on amd64
+and arm64 runners, for every pull request and push to `main`. A version tag
+publishes the image only if they pass on both.
+
 ## What is here
 
 | Path | Purpose |
@@ -64,7 +83,8 @@ docker compose run --rm web python manage.py test
 | `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline) |
 | `compose.override.yaml` | Dev overlay: build from source, bind mount, `runserver` |
 | `Dockerfile` | The `web` image. Migrates, then runs gunicorn; static files baked in |
-| `.github/workflows/publish.yml` | Builds and pushes the image on version tags |
+| `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass |
+| `e2e/` | Playwright browser tests in emulated Android and iOS devices |
 | `config/` | Django settings, URLs, WSGI entrypoint |
 | `core/` | The hello-world view, health check, PWA templates, tests |
 | `static/` | Stylesheet, install-prompt JavaScript, placeholder icons |

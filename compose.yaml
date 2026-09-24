@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   web:
-    # Published by .github/workflows/publish.yml on each version tag. Set
+    # Published by .github/workflows/ci.yml on each version tag. Set
     # PLANFC_VERSION (e.g. 0.1.0) to pin a release instead of tracking latest.
     image: ghcr.io/ajp442/planfc:${PLANFC_VERSION:-latest}
     environment:
