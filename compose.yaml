@@ -6,7 +6,10 @@ name: planfc
 
 services:
   db:
-    image: postgres:17-alpine
+    # Exact versions, so each planFC release runs what its CI tested. Dependabot
+    # proposes bumps, which go through CI before a release carries them. Major
+    # Postgres upgrades are manual: pgdata must be migrated (see ARCHITECTURE.md).
+    image: postgres:17.11-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-planfc}
       POSTGRES_USER: ${POSTGRES_USER:-planfc}
@@ -44,7 +47,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.4-alpine
     environment:
       # ":80" serves plain HTTP on any hostname, which is enough for localhost,
       # where browsers already grant service workers a secure context. A domain

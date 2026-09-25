@@ -54,7 +54,7 @@ public under the package settings on GitHub.
 
 Each release on GitHub lists the third-party versions its image contains, per
 architecture: the base OS, Python, every Python package, and the Postgres and Caddy
-images `compose.yaml` resolved to that day. The matrix across all releases is at
+versions `compose.yaml` pins. Dependabot proposes updates to all of them. The matrix across all releases is at
 <https://github.com/ajp442/planFC/releases/latest/download/VERSIONS.md>, and each
 release's `versions.json` has the same data with full digests.
 

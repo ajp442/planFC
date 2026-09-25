@@ -5,9 +5,9 @@
 
 `collect` runs the already-pushed image once per platform and asks it for its
 OS, Python and installed packages, then resolves the other images compose.yaml
-names (Postgres, Caddy). Those use floating tags such as postgres:17-alpine, so
-what it records for them is what a deployment pulled on the day of the release,
-not a pin. `render` turns any number of those records into one matrix, newest
+names (Postgres, Caddy). Those are pinned to exact versions, but official images
+are rebuilt under the same tag for OS patches, so their digest is what the tag
+held on the day of the release. `render` turns any number of those records into one matrix, newest
 release first. CI attaches both to the GitHub release for each version tag.
 
 Standard library only, so it runs on a bare CI runner. Needs Docker.
@@ -153,8 +153,8 @@ def render(args):
         out += [
             "## Alongside it, from compose.yaml",
             "",
-            "These tags float: `docker compose pull` fetches whatever they point at that day.",
-            "Listed is what they resolved to when each release was published.",
+            "The images `compose.yaml` pinned at each release. Official images are rebuilt",
+            "under the same tag for OS patches, so the digest is what the tag held on release day.",
             "",
         ]
         rows = []
