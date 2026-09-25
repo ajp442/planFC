@@ -52,6 +52,12 @@ That runs gunicorn with `DEBUG` off. To upgrade: `docker compose pull && docker 
 GHCR makes a new package private, so after the first publish set its visibility to
 public under the package settings on GitHub.
 
+Each release on GitHub lists the third-party versions its image contains, per
+architecture: the base OS, Python, every Python package, and the Postgres and Caddy
+versions `compose.yaml` pins. Dependabot proposes updates to all of them. The matrix across all releases is at
+<https://github.com/ajp442/planFC/releases/latest/download/VERSIONS.md>, and each
+release's `versions.json` has the same data with full digests.
+
 ## Run the tests
 
 ```
@@ -83,11 +89,12 @@ publishes the image only if they pass on both.
 | `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline) |
 | `compose.override.yaml` | Dev overlay: build from source, bind mount, `runserver` |
 | `Dockerfile` | The `web` image. Migrates, then runs gunicorn; static files baked in |
-| `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass |
+| `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass, then publishes a release with its version matrix |
 | `e2e/` | Playwright browser tests in emulated Android and iOS devices |
 | `config/` | Django settings, URLs, WSGI entrypoint |
 | `core/` | The hello-world view, health check, PWA templates, tests |
 | `static/` | Stylesheet, install-prompt JavaScript, placeholder icons |
+| `tools/version_matrix.py` | Records and renders the third-party versions in each released image |
 | `tools/make_icons.py` | Regenerates the placeholder icons; delete once we have a real crest |
 
 ## Notes and known gaps

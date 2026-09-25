@@ -1,0 +1,32 @@
+# Weekly PRs for every pinned dependency. Each runs through CI like any other
+# PR; nothing reaches deployers until it is merged and a version is tagged.
+version: 2
+updates:
+  # Postgres and Caddy in compose.yaml.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # A new Postgres major cannot read the old pgdata volume; that upgrade
+      # needs a pg_upgrade or dump and restore, so it is done by hand.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+
+  # The python base image in the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # requirements.txt holds ranges, so these PRs only widen them; the image
+  # already picks up new releases within a range on each build.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly

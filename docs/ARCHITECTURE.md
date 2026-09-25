@@ -57,9 +57,9 @@ without going through an app store.
 flowchart LR
     phone["Browser / installed PWA<br/>(app.js, sw.js)"]
     subgraph compose["Docker Compose project: planfc"]
-        caddy["caddy<br/>caddy:2-alpine<br/>TLS + reverse proxy"]
+        caddy["caddy<br/>caddy:2.11.4-alpine<br/>TLS + reverse proxy"]
         web["web<br/>ghcr.io/ajp442/planfc<br/>Django + gunicorn + WhiteNoise"]
-        db[("db<br/>postgres:17-alpine")]
+        db[("db<br/>postgres:17.11-alpine")]
         pgdata[/"pgdata volume"/]
     end
     phone -- "HTTP(S) :8080 / :8443<br/>(80/443 in production)" --> caddy
@@ -70,10 +70,10 @@ flowchart LR
 
 | Layer | Technology | Where it's defined |
 |---|---|---|
-| Edge / TLS | Caddy 2 | `compose.yaml` (`caddy` service and the inline `caddyfile` config) |
+| Edge / TLS | Caddy 2 (exact version pinned) | `compose.yaml` (`caddy` service and the inline `caddyfile` config) |
 | Application | Django 5.2, gunicorn (prod) or `runserver` (dev) | `config/`, `core/`, `Dockerfile` |
 | Static files | WhiteNoise, baked into the image | `config/settings.py`, `Dockerfile` |
-| Database | PostgreSQL 17 | `compose.yaml` (`db` service) |
+| Database | PostgreSQL 17 (exact version pinned) | `compose.yaml` (`db` service) |
 | Client | Plain HTML/CSS/JS, service worker, manifest | `core/templates/`, `static/` |
 | Delivery | GitHub Actions: test the image, then push to GHCR, multi-arch | `.github/workflows/ci.yml` |
 
@@ -359,6 +359,13 @@ make that possible:
   Without that, `migrate` races Postgres's first-boot initialisation and exits.
 - `restart: unless-stopped` everywhere. `pgdata`, `caddy_data` (certificates) and
   `caddy_config` are named volumes.
+- `db` and `caddy` are **pinned to exact versions**, so a release runs what CI
+  tested with it. Dependabot (`.github/dependabot.yml`) proposes bumps as PRs, and
+  each release's `VERSIONS.md` records what it carries.
+- **Upgrading Postgres across a major version is manual.** A new major cannot open
+  the old `pgdata`, so Dependabot skips majors. Every deployer then has to
+  `pg_dumpall` from the old container, start the new one on a fresh volume and
+  restore (or run `pg_upgrade`). The release that changes the tag must say so.
 
 **`compose.override.yaml` is merged automatically** when both files sit in the same
 directory, which happens only in a clone. It changes `web` to:
