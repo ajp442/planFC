@@ -2,7 +2,8 @@
 # publishes to ghcr.io/ajp442/planfc only when a version tag is pushed
 # (git tag v0.1.0 && git push origin v0.1.0) and those same tests pass.
 # Pushes to main publish nothing, so `latest` only ever moves on a deliberate
-# release.
+# release. Each release also gets a GitHub release listing the third-party
+# versions inside the image (tools/version_matrix.py).
 name: CI
 
 on:
@@ -119,3 +120,64 @@ jobs:
           cache-from: |
             type=gha,scope=amd64
             type=gha,scope=arm64
+
+  # Publishes a GitHub release per version tag carrying what its image
+  # contains: versions.json for this tag, and VERSIONS.md, the matrix across
+  # every release so far. Newest is always at
+  # https://github.com/ajp442/planFC/releases/latest/download/VERSIONS.md
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      # Full history for the tag list: earlier tags are gathered below.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The matrix is read by running the pushed image, arm64 included.
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record this release's versions
+        run: |
+          mkdir matrix
+          python3 tools/version_matrix.py collect "$TAG" "ghcr.io/ajp442/planfc:${TAG#v}" \
+            --platform linux/amd64 --platform linux/arm64 --compose compose.yaml \
+            > "matrix/$TAG.json"
+
+      # Each earlier release already carries its record. A tag from before
+      # this job existed has none, so its image is read instead; one whose
+      # tests failed was never pushed and is left out.
+      - name: Gather earlier releases
+        run: |
+          for tag in $(git tag -l 'v*.*.*'); do
+            [ "$tag" = "$TAG" ] && continue
+            gh release download "$tag" -p versions.json -O "matrix/$tag.json" 2>/dev/null && continue
+            python3 tools/version_matrix.py collect "$tag" "ghcr.io/ajp442/planfc:${tag#v}" \
+              --platform linux/amd64 --platform linux/arm64 > "matrix/$tag.json" \
+              || { echo "::notice::$tag has no published image; left out of the matrix"; rm -f "matrix/$tag.json"; }
+          done
+
+      - name: Publish the release
+        run: |
+          cp "matrix/$TAG.json" versions.json
+          python3 tools/version_matrix.py render "matrix/$TAG.json" > notes.md
+          python3 tools/version_matrix.py render matrix/*.json > VERSIONS.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+          # A re-run finds the release already there and refreshes it.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md
+            gh release upload "$TAG" versions.json VERSIONS.md --clobber
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md versions.json VERSIONS.md
+          fi
