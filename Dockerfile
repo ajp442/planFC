@@ -1,6 +1,6 @@
 # Single-stage is fine for a pure-Python app: psycopg[binary] ships its own
 # libpq, so there is nothing to compile and no build toolchain to discard.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
