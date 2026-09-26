@@ -1,5 +1,8 @@
 # Weekly PRs for every pinned dependency. Each runs through CI like any other
 # PR; nothing reaches deployers until it is merged and a version is tagged.
+# Each week, patch and minor bumps are grouped into one PR per ecosystem
+# (so at most four), and each major bump gets its own PR. All are reviewed
+# and merged (or closed) by hand.
 version: 2
 updates:
   # Postgres and Caddy in compose.yaml.
@@ -12,17 +15,26 @@ updates:
       # needs a pg_upgrade or dump and restore, so it is done by hand.
       - dependency-name: postgres
         update-types: ["version-update:semver-major"]
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
 
   # The python base image in the Dockerfile.
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
 
   # requirements.txt holds ranges, so these PRs only widen them; the image
   # already picks up new releases within a range on each build.
@@ -30,3 +42,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
