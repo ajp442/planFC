@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.7-alpine
     environment:
       # ":80" serves plain HTTP on any hostname, which is enough for localhost,
       # where browsers already grant service workers a secure context. A domain
