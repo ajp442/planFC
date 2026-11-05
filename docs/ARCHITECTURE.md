@@ -367,6 +367,14 @@ make that possible:
   the old `pgdata`, so Dependabot skips majors. Every deployer then has to
   `pg_dumpall` from the old container, start the new one on a fresh volume and
   restore (or run `pg_upgrade`). The release that changes the tag must say so.
+  - **Postgres 18 also moves the data directory.** Up to 17, the image's default
+    `PGDATA` is `/var/lib/postgresql/data`, which is where `compose.yaml` mounts
+    `pgdata`. From 18 it is `/var/lib/postgresql/18/docker`, and the volume is
+    meant to be mounted one level up, at `/var/lib/postgresql`. The release that
+    moves to 18 must change the mount to `pgdata:/var/lib/postgresql` along with
+    the tag. With the old mount, the 18 image refuses to start and prints an
+    error about the changed location. Without that check, the database would be
+    written outside the volume and lost when the container is recreated.
 
 **`compose.override.yaml` is merged automatically** when both files sit in the same
 directory, which happens only in a clone. It renames the Compose project to
