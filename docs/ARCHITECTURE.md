@@ -3,7 +3,8 @@
 This document explains how the source code is put together and why. It covers the
 code as it stands after the **Foundation proof of concept**. For scope, milestones
 and product decisions, see [`PLAN.md`](../PLAN.md). For how to run things, see
-[`README.md`](../README.md).
+[`README.md`](../README.md) and, for development versus production instances,
+[`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 Update this file when the shape of the system changes, for example when a new
 Django app, a new service or a new deployment path is added. Small changes inside
@@ -368,7 +369,10 @@ make that possible:
   restore (or run `pg_upgrade`). The release that changes the tag must say so.
 
 **`compose.override.yaml` is merged automatically** when both files sit in the same
-directory, which happens only in a clone. It changes `web` to:
+directory, which happens only in a clone. It renames the Compose project to
+`planfc-dev`, so a dev stack and a production stack (`planfc`) on one machine get
+separate containers, networks and volumes; see [DEPLOYMENT.md](DEPLOYMENT.md). It
+changes `web` to:
 
 - build from source under a local tag `planfc-web:dev` (`pull_policy: build`), so a
   dev build never shadows the real GHCR image;
@@ -380,6 +384,7 @@ The two modes behave like this:
 
 | | Deployer (`compose.yaml` only) | Developer (clone) |
 |---|---|---|
+| Project / volumes | `planfc`, `planfc_pgdata` | `planfc-dev`, `planfc-dev_pgdata` |
 | Image | `ghcr.io/ajp442/planfc:${PLANFC_VERSION:-latest}` | built locally as `planfc-web:dev` |
 | Server | gunicorn, 3 workers | `runserver` with reload |
 | Debug | off | on |
