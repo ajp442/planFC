@@ -2,6 +2,13 @@
 # in the same directory, so in a clone `docker compose up --build` runs the
 # source tree instead of the published image. Downloads of compose.yaml alone
 # never see it.
+
+# Its own project name, so a production stack on the same machine (project
+# "planfc", see docs/DEPLOYMENT.md) keeps separate containers, network and
+# volumes. Without it, `docker compose down -v` here would delete production's
+# database.
+name: planfc-dev
+
 services:
   web:
     # A local name, so a dev build never shadows the pulled ghcr.io image.

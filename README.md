@@ -1,7 +1,9 @@
 # planFC
 
 Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones,
-and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code is designed.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code is designed, and
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for running a development and a production
+instance side by side on one machine.
 
 This repository currently holds the **Foundation proof of concept**: a Django app
 behind Caddy with Postgres, installable as a PWA, running under Docker Compose.
@@ -28,6 +30,8 @@ docker compose up --build
 `compose.override.yaml` is merged in automatically: it builds from source,
 bind-mounts the tree and runs `runserver` with `DEBUG` on. If your uid is not
 1000 (`id -u`), set `APP_UID` in `.env` or the container cannot write into the tree.
+It also names the Compose project `planfc-dev`, so its containers and database volume
+never collide with a production instance (project `planfc`) on the same machine.
 
 Then open <http://localhost:8080>. The page reports three things: database
 connectivity, service worker registration, and whether you are running in a
@@ -49,6 +53,8 @@ docker compose up -d
 ```
 
 That runs gunicorn with `DEBUG` off. To upgrade: `docker compose pull && docker compose up -d`.
+For the full production procedure (pinning a version, ports, backups before upgrading,
+rollback), see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 GHCR makes a new package private, so after the first publish set its visibility to
 public under the package settings on GitHub.
 
@@ -87,7 +93,7 @@ publishes the image only if they pass on both.
 | Path | Purpose |
 |---|---|
 | `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline) |
-| `compose.override.yaml` | Dev overlay: build from source, bind mount, `runserver` |
+| `compose.override.yaml` | Dev overlay: project `planfc-dev`, build from source, bind mount, `runserver` |
 | `Dockerfile` | The `web` image. Migrates, then runs gunicorn; static files baked in |
 | `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass, then publishes a release with its version matrix |
 | `e2e/` | Playwright browser tests in emulated Android and iOS devices |
