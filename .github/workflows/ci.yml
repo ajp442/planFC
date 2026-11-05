@@ -3,7 +3,8 @@
 # (git tag v0.1.0 && git push origin v0.1.0) and those same tests pass.
 # Pushes to main publish nothing, so `latest` only ever moves on a deliberate
 # release. Each release also gets a GitHub release listing the third-party
-# versions inside the image (tools/version_matrix.py).
+# versions inside the image (tools/version_matrix.py), plus that release's
+# compose.yaml (pinned to its image) and .env.example for deploying it.
 name: CI
 
 on:
@@ -171,13 +172,19 @@ jobs:
       - name: Publish the release
         run: |
           cp "matrix/$TAG.json" versions.json
+          # The deployment files for this release, its image pinned as the
+          # default (PLANFC_VERSION in .env still overrides it).
+          sed "s/\${PLANFC_VERSION:-latest}/\${PLANFC_VERSION:-${TAG#v}}/" compose.yaml > release-compose.yaml
+          grep -qF "planfc:\${PLANFC_VERSION:-${TAG#v}}" release-compose.yaml
+          mkdir release && mv release-compose.yaml release/compose.yaml
+          cp .env.example release/.env.example
           python3 tools/version_matrix.py render "matrix/$TAG.json" > notes.md
           python3 tools/version_matrix.py render matrix/*.json > VERSIONS.md
           cat notes.md >> "$GITHUB_STEP_SUMMARY"
           # A re-run finds the release already there and refreshes it.
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release edit "$TAG" --notes-file notes.md
-            gh release upload "$TAG" versions.json VERSIONS.md --clobber
+            gh release upload "$TAG" versions.json VERSIONS.md release/compose.yaml release/.env.example --clobber
           else
-            gh release create "$TAG" --title "$TAG" --notes-file notes.md versions.json VERSIONS.md
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md versions.json VERSIONS.md release/compose.yaml release/.env.example
           fi

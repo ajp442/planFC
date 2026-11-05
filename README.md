@@ -39,16 +39,23 @@ appears once Chrome judges the app installable.
 ## Run it without a clone
 
 Each version tag (`git tag v0.1.0 && git push origin v0.1.0`) whose tests pass publishes the image
-to `ghcr.io/ajp442/planfc` for amd64 and arm64. Anyone can then run:
+to `ghcr.io/ajp442/planfc` for amd64 and arm64, and a GitHub release carrying that
+version's `compose.yaml` (its image pinned) and `.env.example`. Anyone can then run:
 
 ```
-curl -O https://raw.githubusercontent.com/ajp442/planFC/main/compose.yaml
-curl -o .env https://raw.githubusercontent.com/ajp442/planFC/main/.env.example
+V=v0.1.2   # a release tag; or use releases/latest/download/... for the newest
+curl -LO https://github.com/ajp442/planFC/releases/download/$V/compose.yaml
+curl -L -o .env https://github.com/ajp442/planFC/releases/download/$V/.env.example
 # edit .env: real DJANGO_SECRET_KEY and POSTGRES_PASSWORD, your hostnames
 docker compose up -d
 ```
 
-That runs gunicorn with `DEBUG` off. To upgrade: `docker compose pull && docker compose up -d`.
+That runs gunicorn with `DEBUG` off. To upgrade, download the new release's
+`compose.yaml` over the old one (keep your `.env`), then
+`docker compose pull && docker compose up -d`. Releases before the first one that
+carries these files have none; for those, fetch from the tag instead
+(`https://raw.githubusercontent.com/ajp442/planFC/v0.1.1/compose.yaml`) and set
+`PLANFC_VERSION=0.1.1` in `.env`.
 GHCR makes a new package private, so after the first publish set its visibility to
 public under the package settings on GitHub.
 
