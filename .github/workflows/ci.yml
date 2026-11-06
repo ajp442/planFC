@@ -116,6 +116,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Shown in the page footer and /healthz. They only set ENV in the
+          # final step, so the tested layers above still come from the cache.
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_COMMIT=${{ github.sha }}
           # The layers the test jobs built and tested, so QEMU has little or
           # nothing left to run for arm64.
           cache-from: |

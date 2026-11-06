@@ -1,27 +1,27 @@
 {% load static %}{
-  "name": "planFC",
-  "short_name": "planFC",
+  "name": "{{ app_name }}",
+  "short_name": "{{ app_name }}",
   "description": "Pickup game planning for our football club.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f1412",
-  "theme_color": "#0b6b3a",
+  "theme_color": "{{ theme_color }}",
   "icons": [
     {
-      "src": "{% static 'icons/icon_192.png' %}",
+      "src": "{% static icon_dir|add:'icon_192.png' %}",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "{% static 'icons/icon_512.png' %}",
+      "src": "{% static icon_dir|add:'icon_512.png' %}",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "{% static 'icons/icon_maskable_512.png' %}",
+      "src": "{% static icon_dir|add:'icon_maskable_512.png' %}",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

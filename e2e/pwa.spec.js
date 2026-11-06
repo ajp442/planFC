@@ -12,6 +12,13 @@ test("page renders with the database connected", async ({ page }) => {
   await expect(page.getByText("Database connected")).toBeVisible();
 });
 
+test("footer names the release that /healthz reports", async ({ page, request }) => {
+  const health = await (await request.get("/healthz")).json();
+  await page.goto("/");
+  const commit = health.commit ? ` (${health.commit.slice(0, 7)})` : "";
+  await expect(page.locator("#version")).toHaveText(`Version ${health.version}${commit}`);
+});
+
 test("service worker registers with whole-site scope", async ({ page, baseURL }) => {
   await page.goto("/");
   await expect(page.locator("#sw_text")).toHaveText(

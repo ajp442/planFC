@@ -11,8 +11,11 @@ name: planfc-dev
 
 services:
   web:
-    # A local name, so a dev build never shadows the pulled ghcr.io image.
-    image: planfc-web:dev
+    # A local name, so a dev build never shadows the pulled ghcr.io image, and
+    # one per project (planfc-dev-web, planfc-dev-ajp-web), so two dev stacks
+    # on one machine never swap each other's builds. Compose fills in the
+    # project name however it was set: name: above, .env, or -p.
+    image: ${COMPOSE_PROJECT_NAME}-web
     pull_policy: build
     build:
       context: .
@@ -25,5 +28,7 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     environment:
       DJANGO_DEBUG: "1"
+      # Dev icons, name and badge, so dev can't pass for production.
+      PLANFC_ENVIRONMENT: development
     volumes:
       - .:/app

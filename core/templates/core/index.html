@@ -3,24 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>planFC</title>
+<title>{{ app_name }}</title>
 
 <link rel="manifest" href="{% url 'manifest' %}">
-<meta name="theme-color" content="#0b6b3a">
+<meta name="theme-color" content="{{ theme_color }}">
 
 <!-- iOS ignores the manifest's icons when adding to the home screen and reads
      this link instead; without it the icon is a screenshot of the page. -->
-<link rel="apple-touch-icon" href="{% static 'icons/icon_180.png' %}">
+<link rel="apple-touch-icon" href="{% static icon_dir|add:'icon_180.png' %}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="planFC">
+<meta name="apple-mobile-web-app-title" content="{{ app_name }}">
 
-<link rel="icon" href="{% static 'icons/icon_192.png' %}">
+<link rel="icon" href="{% static icon_dir|add:'icon_192.png' %}">
 <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>
 <main>
-  <img class="crest" src="{% static 'icons/icon_192.png' %}" alt="">
+  {% if is_dev %}<p class="badge">Development</p>{% endif %}
+  <img class="crest" src="{% static icon_dir|add:'icon_192.png' %}" alt="">
   <h1>planFC</h1>
   <p class="tagline">Hello, world. The foundation is up.</p>
 
@@ -33,10 +34,12 @@
     <li><span class="dot" id="mode_dot"></span> <span id="mode_text">Display mode &hellip;</span></li>
   </ul>
 
-  <button id="install_button" hidden>Install planFC</button>
+  <button id="install_button" hidden>Install {{ app_name }}</button>
   <p id="ios_hint" class="hint" hidden>
     To install: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
   </p>
+
+  <p class="version" id="version">Version {{ app_version }}{% if git_commit %} ({{ git_commit }}){% endif %}</p>
 </main>
 <script src="{% static 'js/app.js' %}"></script>
 </body>

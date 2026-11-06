@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -13,6 +15,18 @@ def env_list(name, default=""):
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+
+# "development" gives the PWA its own icons, name and colour, so an installed dev
+# build can't be mistaken for production. compose.override.yaml sets it; the
+# published image defaults to production. Kept apart from DEBUG, which is about
+# error pages, not which instance this is.
+ENVIRONMENT = os.environ.get("PLANFC_ENVIRONMENT", "production")
+if ENVIRONMENT not in ("production", "development"):
+    raise ImproperlyConfigured(f"PLANFC_ENVIRONMENT must be production or development, not {ENVIRONMENT!r}")
+
+# Baked into release images by CI (see the Dockerfile); local builds say "dev".
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+GIT_COMMIT = os.environ.get("GIT_COMMIT", "")
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8080")
@@ -51,6 +65,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.deployment",
             ],
         },
     },

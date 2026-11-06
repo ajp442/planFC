@@ -29,16 +29,18 @@ laptop should host production at all, see the hosting notes in
 | Compose project | `planfc-dev` | `planfc` |
 | Containers | `planfc-dev-{db,web,caddy}-1` | `planfc-{db,web,caddy}-1` |
 | Database volume | `planfc-dev_pgdata` | `planfc_pgdata` |
-| `web` image | `planfc-web:dev`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
+| `web` image | `planfc-dev-web`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
 | Server | `runserver`, reloads on save, `DEBUG` on | gunicorn with 3 workers, `DEBUG` off |
 | Source | bind-mounted from the clone | baked into the image |
 | URL on corncob | <http://localhost:8080> | <http://localhost> (port 80); later <https://planfc.com> |
 | Starts at boot | yes, if it was running when the machine went down | yes (`restart: unless-stopped`) |
+| Looks like | amber "FC DEV" icon, named **planFC Dev**, a Development badge on the page | green "FC" icon, named **planFC** |
+| Version shown | `dev` | the release, e.g. `0.1.3 (a1b2c3d)` |
 
 ## 2. What keeps them apart
 
 Both instances run the same three services, `db`, `web` and `caddy`, on one Docker
-daemon. Four things keep them from interfering:
+daemon. Five things keep them from interfering:
 
 1. **Separate Compose project names.** `compose.yaml` sets `name: planfc`, and
    `compose.override.yaml` overrides it with `name: planfc-dev`. Docker derives
@@ -50,7 +52,12 @@ daemon. Four things keep them from interfering:
    pick up the dev overlay by accident, and each directory reads its own `.env`.
 3. **Separate host ports.** Dev's Caddy keeps the defaults, 8080 and 8443.
    Production's `.env` sets 80 and 443, the ports a real domain needs anyway.
-4. **Separate images.** Dev builds and tags `planfc-web:dev`. Production pulls a
+4. **Different looks.** `compose.override.yaml` sets `PLANFC_ENVIRONMENT=development`,
+   which swaps in the amber icons from `static/icons/dev/`, renames the app to
+   planFC Dev and adds a Development badge. An installed app has no address bar, so
+   the icon and name are what tell the two apart on a phone. The published image
+   defaults to production.
+5. **Separate images.** Dev builds and tags `<project>-web`, so `planfc-dev-web` by default. Production pulls a
    pinned release from GHCR, so a dev build never ends up in production.
 
 > **Rule of thumb:** a `docker compose` command acts on whichever instance's
@@ -104,6 +111,22 @@ the service worker as registered.
 
 Python code reloads on save. Changing `requirements.txt` or the `Dockerfile` needs
 `--build` again.
+
+### A second dev instance on the same machine
+
+Each person can run their own dev stack from their own clone. Give it a
+different project name and ports in that clone's `.env`:
+
+```ini
+COMPOSE_PROJECT_NAME=planfc-dev-ajp
+HTTP_PORT=8082
+HTTPS_PORT=8445
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8082,https://*.trycloudflare.com
+```
+
+`COMPOSE_PROJECT_NAME` overrides the `name:` in `compose.override.yaml`, so the
+stack gets its own containers, database volume and image (`planfc-dev-ajp-web`).
+Every `docker compose` command in that clone then acts on it alone.
 
 ### Testing on a phone
 
@@ -229,8 +252,10 @@ curl -fsSL "https://raw.githubusercontent.com/ajp442/planFC/v$VERSION/.env.examp
 # 3. Set PLANFC_VERSION=$VERSION in .env, then:
 docker compose pull
 docker compose up -d
-curl -fsS http://localhost/healthz
+curl -fsS http://localhost/healthz      # "version" should now say $VERSION
 ```
+
+The page footer shows the same version and commit, for checking from a phone.
 
 Read the release notes before upgrading. A release that changes the Postgres major
 version needs a manual dump and restore, as described in

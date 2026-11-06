@@ -1,12 +1,12 @@
 {% load static %}// Bump CACHE_VERSION whenever the shell assets change. A service worker that
 // serves a stale shell forever is the classic PWA failure, and it is invisible
 // in development because you are always hard-reloading.
-const CACHE_VERSION = "planfc-v2";
+const CACHE_VERSION = "planfc-v3";
 
 const SHELL = [
   "{% static 'css/app.css' %}",
   "{% static 'js/app.js' %}",
-  "{% static 'icons/icon_192.png' %}",
+  "{% static icon_dir|add:'icon_192.png' %}",
 ];
 
 self.addEventListener("install", (event) => {
