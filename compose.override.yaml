@@ -25,5 +25,7 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     environment:
       DJANGO_DEBUG: "1"
+      # Dev icons, name and badge, so dev can't pass for production.
+      PLANFC_ENVIRONMENT: development
     volumes:
       - .:/app

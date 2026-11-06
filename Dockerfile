@@ -25,6 +25,14 @@ USER app
 # them. collectstatic never reads the key, but settings refuse to load without one.
 RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput
 
+# What the page footer and /healthz report. CI passes the release version and
+# commit when it publishes; local builds keep "dev". Declared after every
+# filesystem step, so a new version never invalidates the cached layers.
+ARG APP_VERSION=dev
+ARG GIT_COMMIT=
+ENV APP_VERSION=${APP_VERSION} \
+    GIT_COMMIT=${GIT_COMMIT}
+
 EXPOSE 8000
 
 # The production path. Migrating here rather than in an entrypoint means
