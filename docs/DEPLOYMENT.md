@@ -29,7 +29,7 @@ laptop should host production at all, see the hosting notes in
 | Compose project | `planfc-dev` | `planfc` |
 | Containers | `planfc-dev-{db,web,caddy}-1` | `planfc-{db,web,caddy}-1` |
 | Database volume | `planfc-dev_pgdata` | `planfc_pgdata` |
-| `web` image | `planfc-web:dev`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
+| `web` image | `planfc-dev-web`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
 | Server | `runserver`, reloads on save, `DEBUG` on | gunicorn with 3 workers, `DEBUG` off |
 | Source | bind-mounted from the clone | baked into the image |
 | URL on corncob | <http://localhost:8080> | <http://localhost> (port 80); later <https://planfc.com> |
@@ -57,7 +57,7 @@ daemon. Five things keep them from interfering:
    planFC Dev and adds a Development badge. An installed app has no address bar, so
    the icon and name are what tell the two apart on a phone. The published image
    defaults to production.
-5. **Separate images.** Dev builds and tags `planfc-web:dev`. Production pulls a
+5. **Separate images.** Dev builds and tags `<project>-web`, so `planfc-dev-web` by default. Production pulls a
    pinned release from GHCR, so a dev build never ends up in production.
 
 > **Rule of thumb:** a `docker compose` command acts on whichever instance's
@@ -111,6 +111,22 @@ the service worker as registered.
 
 Python code reloads on save. Changing `requirements.txt` or the `Dockerfile` needs
 `--build` again.
+
+### A second dev instance on the same machine
+
+Each person can run their own dev stack from their own clone. Give it a
+different project name and ports in that clone's `.env`:
+
+```ini
+COMPOSE_PROJECT_NAME=planfc-dev-ajp
+HTTP_PORT=8082
+HTTPS_PORT=8445
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8082,https://*.trycloudflare.com
+```
+
+`COMPOSE_PROJECT_NAME` overrides the `name:` in `compose.override.yaml`, so the
+stack gets its own containers, database volume and image (`planfc-dev-ajp-web`).
+Every `docker compose` command in that clone then acts on it alone.
 
 ### Testing on a phone
 

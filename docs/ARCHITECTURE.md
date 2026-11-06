@@ -374,18 +374,19 @@ directory, which happens only in a clone. It renames the Compose project to
 separate containers, networks and volumes; see [DEPLOYMENT.md](DEPLOYMENT.md). It
 changes `web` to:
 
-- build from source under a local tag `planfc-web:dev` (`pull_policy: build`), so a
-  dev build never shadows the real GHCR image;
+- build from source (`pull_policy: build`) under a local tag named after the
+  project, `planfc-dev-web` by default, so a dev build never shadows the real
+  GHCR image and two dev stacks on one machine never swap builds;
 - bind-mount `.:/app` and run `migrate`, `collectstatic`, then `runserver` for
   live reload;
-- set `DJANGO_DEBUG=1`.
+- set `DJANGO_DEBUG=1` and `PLANFC_ENVIRONMENT=development`.
 
 The two modes behave like this:
 
 | | Deployer (`compose.yaml` only) | Developer (clone) |
 |---|---|---|
 | Project / volumes | `planfc`, `planfc_pgdata` | `planfc-dev`, `planfc-dev_pgdata` |
-| Image | `ghcr.io/ajp442/planfc:${PLANFC_VERSION:-latest}` | built locally as `planfc-web:dev` |
+| Image | `ghcr.io/ajp442/planfc:${PLANFC_VERSION:-latest}` | built locally as `<project>-web` |
 | Server | gunicorn, 3 workers | `runserver` with reload |
 | Debug | off | on |
 | Source | baked into the image | bind-mounted |
