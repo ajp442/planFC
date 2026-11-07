@@ -26,13 +26,13 @@ laptop should host production at all, see the hosting notes in
 |---|---|---|
 | Lives in | the git clone, `~/repos/planFC` | `/srv/planfc`, which holds only `compose.yaml` and `.env` |
 | Compose files | `compose.yaml` + `compose.override.yaml` (merged automatically) | `compose.yaml` alone |
-| Compose project | `planfc-dev` | `planfc` |
-| Containers | `planfc-dev-{db,web,caddy}-1` | `planfc-{db,web,caddy}-1` |
-| Database volume | `planfc-dev_pgdata` | `planfc_pgdata` |
-| `web` image | `planfc-dev-web`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
+| Compose project | `planfc-dev-<you>` on corncob (`planfc-dev` if unset) | `planfc` |
+| Containers | `planfc-dev-<you>-{db,web,caddy}-1` | `planfc-{db,web,caddy}-1` |
+| Database volume | `planfc-dev-<you>_pgdata` | `planfc_pgdata` |
+| `web` image | `planfc-dev-<you>-web`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
 | Server | `runserver`, reloads on save, `DEBUG` on | gunicorn with 3 workers, `DEBUG` off |
 | Source | bind-mounted from the clone | baked into the image |
-| URL on corncob | <http://localhost:8080> | <http://localhost> (port 80); later <https://planfc.com> |
+| URL on corncob | zjp: <http://localhost:8081>, ajp: <http://localhost:8082> (see §4) | <http://localhost:8080>; later <https://planfc.com> |
 | Starts at boot | yes, if it was running when the machine went down | yes (`restart: unless-stopped`) |
 | Looks like | amber "FC DEV" icon, named **planFC Dev**, a Development badge on the page | green "FC" icon, named **planFC** |
 | Version shown | `dev` | the release, e.g. `0.1.3 (a1b2c3d)` |
@@ -50,14 +50,16 @@ daemon. Five things keep them from interfering:
 2. **Separate directories.** Compose merges `compose.override.yaml` only when it
    sits next to `compose.yaml`. Production lives outside the clone, so it can't
    pick up the dev overlay by accident, and each directory reads its own `.env`.
-3. **Separate host ports.** Dev's Caddy keeps the defaults, 8080 and 8443.
-   Production's `.env` sets 80 and 443, the ports a real domain needs anyway.
+3. **Separate host ports.** On corncob, production uses the defaults, 8080 and
+   8443, because Tailscale Serve already holds port 80 for the writing group site.
+   It moves to 80 and 443 once planfc.com points at corncob. Each dev stack sets
+   its own ports in its clone's `.env` (see the port table in §4).
 4. **Different looks.** `compose.override.yaml` sets `PLANFC_ENVIRONMENT=development`,
    which swaps in the amber icons from `static/icons/dev/`, renames the app to
    planFC Dev and adds a Development badge. An installed app has no address bar, so
    the icon and name are what tell the two apart on a phone. The published image
    defaults to production.
-5. **Separate images.** Dev builds and tags `<project>-web`, so `planfc-dev-web` by default. Production pulls a
+5. **Separate images.** Dev builds and tags `<project>-web`, such as `planfc-dev-zjp-web`. Production pulls a
    pinned release from GHCR, so a dev build never ends up in production.
 
 > **Rule of thumb:** a `docker compose` command acts on whichever instance's
@@ -89,11 +91,12 @@ cp .env.example .env
 # Edit .env and replace both secrets. Any values will do in dev:
 #   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 id -u    # if this isn't 1000, add APP_UID=<that number> to .env
+# On corncob, also set your project name and ports (see "Dev stacks on corncob").
 docker compose up --build
 ```
 
-Open <http://localhost:8080>. The page should report the database as connected and
-the service worker as registered.
+Open your dev URL, such as <http://localhost:8081>. The page should report the
+database as connected and the service worker as registered.
 
 ### Everyday use
 
@@ -112,21 +115,31 @@ the service worker as registered.
 Python code reloads on save. Changing `requirements.txt` or the `Dockerfile` needs
 `--build` again.
 
-### A second dev instance on the same machine
+### Dev stacks on corncob
 
-Each person can run their own dev stack from their own clone. Give it a
-different project name and ports in that clone's `.env`:
+Production already uses the default ports, 8080 and 8443, so on corncob a dev
+stack must not run on the defaults. Each person runs their own dev stack from
+their own clone, with its own project name and ports:
+
+| Stack | Project | HTTP | HTTPS |
+|---|---|---|---|
+| Production | `planfc` | 8080 | 8443 |
+| zjp's dev | `planfc-dev-zjp` | 8081 | 8444 |
+| ajp's dev | `planfc-dev-ajp` | 8082 | 8445 |
+
+Set them in that clone's `.env`. For example, zjp's:
 
 ```ini
-COMPOSE_PROJECT_NAME=planfc-dev-ajp
-HTTP_PORT=8082
-HTTPS_PORT=8445
-DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8082,https://*.trycloudflare.com
+COMPOSE_PROJECT_NAME=planfc-dev-zjp
+HTTP_PORT=8081
+HTTPS_PORT=8444
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8081,https://*.trycloudflare.com
 ```
 
 `COMPOSE_PROJECT_NAME` overrides the `name:` in `compose.override.yaml`, so the
-stack gets its own containers, database volume and image (`planfc-dev-ajp-web`).
-Every `docker compose` command in that clone then acts on it alone.
+stack gets its own containers, database volume and image (`planfc-dev-zjp-web`).
+Every `docker compose` command in that clone then acts on it alone. A new person
+takes the next free ports (8083 and 8446) and adds a row to this table.
 
 ### Testing on a phone
 
@@ -136,7 +149,7 @@ doesn't resolve to anything yet, a Cloudflare quick tunnel provides it.
 repository, then run:
 
 ```sh
-cloudflared tunnel --url http://localhost:8080
+cloudflared tunnel --url http://localhost:8081    # your dev stack's HTTP port
 ```
 
 `.env.example` already allows `*.trycloudflare.com`, so the random URL that
@@ -188,17 +201,18 @@ python3 -c "import secrets; print(secrets.token_urlsafe(50))"   # run once per s
 
 Choose the block below that matches how production is reached.
 
-**A. On the LAN or through a tunnel only** (until the domain is set up):
+**A. On the LAN or through a tunnel only** (until the domain is set up). Ports
+8080 and 8443, because Tailscale Serve holds port 80 on corncob:
 
 ```ini
 DJANGO_SECRET_KEY=<new random value>
 POSTGRES_PASSWORD=<new random value>
 PLANFC_VERSION=0.1.1
 
-HTTP_PORT=80
-HTTPS_PORT=443
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,corncob,.trycloudflare.com
-DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost,http://corncob,https://*.trycloudflare.com
+HTTP_PORT=8080
+HTTPS_PORT=8443
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net,.trycloudflare.com
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080,https://*.trycloudflare.com
 ```
 
 **B. Serving planfc.com directly.** The domain's DNS must point at this network's
@@ -317,12 +331,12 @@ docker compose ls
 docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
 
 # Development
-cd ~/repos/planFC && docker compose up -d --build    # → http://localhost:8080
+cd ~/repos/planFC && docker compose up -d --build    # → http://localhost:8081 (zjp)
 cd ~/repos/planFC && docker compose logs -f web
 cd ~/repos/planFC && docker compose down
 
 # Production
-cd /srv/planfc && docker compose ps                  # → http://localhost
+cd /srv/planfc && docker compose ps                  # → http://localhost:8080
 cd /srv/planfc && docker compose logs -f --since 1h
 cd /srv/planfc && docker compose restart web
 ```

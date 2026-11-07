@@ -63,7 +63,7 @@ flowchart LR
         db[("db<br/>postgres:17.11-alpine")]
         pgdata[/"pgdata volume"/]
     end
-    phone -- "HTTP(S) :8080 / :8443<br/>(80/443 in production)" --> caddy
+    phone -- "HTTP(S) :8080 / :8443<br/>(80/443 once production has a domain)" --> caddy
     caddy -- "reverse_proxy web:8000" --> web
     web -- "psycopg, port 5432" --> db
     db --- pgdata
@@ -484,8 +484,9 @@ publish nothing, so `latest` moves only on a deliberate release.
 
 This is what happens when someone opens the app for the first time:
 
-1. The browser requests `/`. Caddy receives it (on :8080 in dev, :443 in
-   production) and forwards it to `web:8000` with `X-Forwarded-Proto` set.
+1. The browser requests `/`. Caddy receives it (on the stack's HTTP port, :8080 by
+   default, or on :443 once production has a domain) and forwards it to
+   `web:8000` with `X-Forwarded-Proto` set.
 2. Middleware: Security → WhiteNoise (not a static path, so it passes through) →
    sessions → CSRF → auth → messages.
 3. `core.views.index` runs `SELECT 1` against `db` and renders `index.html` with

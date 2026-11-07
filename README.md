@@ -33,7 +33,9 @@ bind-mounts the tree and runs `runserver` with `DEBUG` on. If your uid is not
 It also names the Compose project `planfc-dev`, so its containers and database volume
 never collide with a production instance (project `planfc`) on the same machine.
 
-Then open <http://localhost:8080>. The page reports three things: database
+Then open <http://localhost:8080>. On corncob, production already uses 8080, so
+set your own project name and ports in `.env` first; see
+[Dev stacks on corncob](docs/DEPLOYMENT.md#dev-stacks-on-corncob). The page reports three things: database
 connectivity, service worker registration, and whether you are running in a
 browser tab or installed.
 
