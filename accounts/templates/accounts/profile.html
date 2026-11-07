@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static %}
+{% block head_title %}Profile{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="profile-head">
+    {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="large" %}
+    <div>
+      <h1>{{ member_name }}</h1>
+      <p class="muted">{{ user.email }}</p>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="stack">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="field-row">
+      <p>
+        <label for="{{ form.first_name.id_for_label }}">First name</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
+      </p>
+      <p>
+        <label for="{{ form.last_name.id_for_label }}">Last name</label>
+        {{ form.last_name }}
+        {{ form.last_name.errors }}
+      </p>
+    </div>
+    <p>
+      <label for="{{ form.picture.id_for_label }}">Profile picture</label>
+      {{ form.picture }}
+      <span class="helptext">{{ form.picture.help_text }}</span>
+      {{ form.picture.errors }}
+    </p>
+    {% if has_picture %}
+      <p class="checkbox">{{ form.remove_picture }} <label for="{{ form.remove_picture.id_for_label }}">{{ form.remove_picture.label }}</label></p>
+    {% endif %}
+    <button type="submit">Save profile</button>
+  </form>
+</div>
+
+<section class="card" id="notifications">
+  <h2>Notifications</h2>
+  {% if push_enabled %}
+    <p class="muted" id="push_status">Checking this device&hellip;</p>
+    <p id="push_ios_hint" class="hint" hidden>
+      On iPhone and iPad, notifications only work in the installed app. Tap
+      <strong>Share</strong>, then <strong>Add to Home Screen</strong>, and turn them on from there.
+    </p>
+    <button type="button" id="push_toggle" hidden></button>
+    {% if push_devices %}
+      <p class="muted">On for:</p>
+      <ul class="devices">
+        {% for device in push_devices %}<li>{{ device.device_name }}, since {{ device.created_at|date:"M j, Y" }}</li>{% endfor %}
+      </ul>
+      <form method="post" action="{% url 'push_test' %}">
+        {% csrf_token %}
+        <button type="submit" class="secondary">Send a test notification</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <p class="muted">Notifications aren't set up on this server yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Sign-in and security</h2>
+  <ul class="links">
+    <li><a href="{% url 'account_email' %}">Email address</a></li>
+    <li><a href="{% url 'account_change_password' %}">{% if user.has_usable_password %}Change password{% else %}Set a password{% endif %}</a></li>
+    {% if has_social_providers %}<li><a href="{% url 'socialaccount_connections' %}">Google and Apple sign-in</a></li>{% endif %}
+  </ul>
+  <form method="post" action="{% url 'account_logout' %}" class="js-logout">
+    {% csrf_token %}
+    <button type="submit" class="secondary">Sign out</button>
+  </form>
+</section>
+
+<section class="card danger-zone">
+  <h2>Delete account</h2>
+  <p class="muted">Removes your account, profile and sign-in methods for good.</p>
+  <a class="button danger" href="{% url 'delete_account' %}">Delete my account</a>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+{% if push_enabled %}
+{{ push_config|json_script:"push_config" }}
+<script src="{% static 'js/profile.js' %}"></script>
+{% endif %}
+{% endblock %}

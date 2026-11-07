@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% comment %}
+Every allauth page (sign in, sign up, confirm email, password reset, email
+addresses, reauthenticate) extends this layout. Pointing it at the site's own
+base.html gives them the PWA head, the header and the messages. base.html
+uses the same block names allauth does (head_title, extra_head, content,
+extra_body), so allauth's pages fill them directly.
+{% endcomment %}
+{% block main_class %}card allauth{% endblock %}

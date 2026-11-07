@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block head_title %}Offline{% endblock %}
+{% block content %}
+<div class="card center">
+  <h1>You're offline</h1>
+  <p class="tagline">This page needs a connection. It'll load once you're back online.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</div>
+{% endblock %}

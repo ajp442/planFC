@@ -1,5 +1,6 @@
 :root {
   --pitch: #0b6b3a;
+  --dev: #b45309;
   --bg: #f6f7f6;
   --surface: #ffffff;
   --text: #161d1a;
@@ -7,6 +8,7 @@
   --ok: #17a34a;
   --bad: #d64545;
   --border: #dfe4e1;
+  --field: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -16,6 +18,7 @@
     --text: #e8efeb;
     --muted: #9aa8a1;
     --border: #2a332f;
+    --field: #0f1412;
   }
 }
 
@@ -24,30 +27,83 @@
 body {
   margin: 0;
   /* Keeps content clear of the notch and home indicator once installed. */
-  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  padding: 0 0 max(24px, env(safe-area-inset-bottom));
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   background: var(--bg);
   color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+a { color: var(--pitch); }
+
+@media (prefers-color-scheme: dark) {
+  a { color: #4cc98a; }
+}
+
+/* --- Header ---------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand, .me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.brand img { border-radius: 7px; }
+
+.me-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.signin-link { font-weight: 600; text-decoration: none; }
+
+/* --- Page ------------------------------------------------------------------ */
+
 main {
   width: 100%;
-  max-width: 26rem;
-  padding: 32px 24px;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 24px 16px 0;
+}
+
+.card, main.card {
+  margin-bottom: 16px;
+  padding: 24px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
-  text-align: center;
 }
+
+/* allauth pages put their content straight into a carded <main>. */
+main.card { margin-top: 24px; width: calc(100% - 32px); }
+
+.center { text-align: center; }
 
 .crest { width: 72px; height: 72px; border-radius: 18px; }
 
-h1 { margin: 16px 0 4px; font-size: 1.75rem; letter-spacing: -0.02em; }
+h1 { margin: 0 0 8px; font-size: 1.5rem; letter-spacing: -0.02em; }
+.center h1 { margin-top: 16px; font-size: 1.75rem; }
+h2 { margin: 0 0 12px; font-size: 1.125rem; }
 
 .tagline { margin: 0 0 24px; color: var(--muted); }
+.muted { color: var(--muted); }
 
 .checks { margin: 0 0 24px; padding: 0; list-style: none; text-align: left; }
 
@@ -71,22 +127,145 @@ h1 { margin: 16px 0 4px; font-size: 1.75rem; letter-spacing: -0.02em; }
 .dot.ok { background: var(--ok); }
 .dot.bad { background: var(--bad); }
 
-button {
+/* --- Buttons --------------------------------------------------------------- */
+
+button, .button {
+  display: block;
   width: 100%;
   padding: 14px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 10px;
   background: var(--pitch);
   color: #fff;
   font: inherit;
   font-weight: 600;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
 }
 
-button:hover { filter: brightness(1.08); }
+button:hover, .button:hover { filter: brightness(1.08); }
+button:disabled { opacity: 0.6; cursor: default; }
+
+button.secondary, .button.secondary {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+button.danger, .button.danger { background: var(--bad); color: #fff; }
+
+.actions { display: grid; gap: 10px; margin: 0 0 24px; }
+
+.button-group { display: grid; gap: 10px; margin: 12px 0; }
+
+/* --- Forms ----------------------------------------------------------------- */
+
+form p { margin: 0 0 16px; }
+
+label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9375rem; }
+
+input[type=text], input[type=email], input[type=password], input[type=file], textarea, select {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text);
+  /* 16px stops iOS zooming the page in when a field gets focus. */
+  font: inherit;
+  font-size: 16px;
+}
+
+input[type=checkbox], input[type=radio] { width: auto; margin-right: 6px; }
+.checkbox, p:has(> input[type=checkbox]) { display: flex; align-items: center; }
+.checkbox label, p:has(> input[type=checkbox]) label { display: inline; margin: 0; font-weight: 400; }
+
+.helptext, form span:not(.dot) { display: block; margin-top: 4px; color: var(--muted); font-size: 0.8125rem; }
+/* Django's password rules are a <ul> inside a <p>, which the browser's parser
+   moves out of the paragraph (and the help-text span), so style it directly. */
+form ul:not(.errorlist):not(.providers) {
+  margin: -8px 0 16px;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.errorlist {
+  margin: 4px 0 8px;
+  padding: 0;
+  list-style: none;
+  color: var(--bad);
+  font-size: 0.875rem;
+}
+
+.field-row { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 360px) { .field-row { grid-template-columns: 1fr; } }
+
+hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
+
+/* --- Messages -------------------------------------------------------------- */
+
+.messages { margin: 0 0 16px; padding: 0; list-style: none; }
+
+.message {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.message.success { border-color: var(--ok); }
+.message.error { border-color: var(--bad); }
+
+/* --- Profile --------------------------------------------------------------- */
+
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--pitch);
+  color: #fff;
+  font-weight: 700;
+}
+
+.avatar-small { width: 32px; height: 32px; font-size: 0.8125rem; }
+.avatar-large { width: 72px; height: 72px; font-size: 1.5rem; }
+
+.profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.profile-head h1 { margin: 0; overflow-wrap: anywhere; }
+.profile-head p { margin: 0; overflow-wrap: anywhere; }
+
+.links, .devices { margin: 0 0 16px; padding-left: 18px; }
+.links li, .devices li { margin: 6px 0; }
+
+.danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
+
+/* --- Sign in with ---------------------------------------------------------- */
+
+.providers { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+
+.button.provider {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Apple's guidelines ask for a black (or white) button. */
+.button.provider-apple { border-color: #000; background: #000; color: #fff; }
+
+/* allauth's tables: email addresses, connected accounts. */
+.allauth table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+.allauth th, .allauth td { padding: 8px 4px; border-bottom: 1px solid var(--border); text-align: left; overflow-wrap: anywhere; }
+
+/* --- Bits ------------------------------------------------------------------ */
 
 .hint {
-  margin: 16px 0 0;
+  margin: 16px 0;
   padding: 12px;
   border-radius: 10px;
   background: var(--bg);
@@ -100,13 +279,15 @@ button:hover { filter: brightness(1.08); }
   margin: 0 auto 16px;
   padding: 4px 12px;
   border-radius: 999px;
-  background: #b45309;
+  background: var(--dev);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.badge-small { margin: 0; padding: 2px 8px; font-size: 0.625rem; }
 
 .version {
   margin: 24px 0 0;
