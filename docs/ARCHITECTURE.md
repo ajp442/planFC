@@ -22,6 +22,7 @@ an existing file don't need an update.
   - [3.3 Views (`core/views.py`)](#33-views-coreviewspy)
   - [3.4 Models and migrations](#34-models-and-migrations)
   - [3.5 Tests (`core/tests.py`)](#35-tests-coretestspy)
+  - [3.6 Accounts (`accounts/`)](#36-accounts-accounts)
 - [4. The client side (PWA)](#4-the-client-side-pwa)
   - [4.1 The page (`core/templates/core/index.html`)](#41-the-page-coretemplatescoreindexhtml)
   - [4.2 The manifest (`core/templates/pwa/manifest.webmanifest`)](#42-the-manifest-coretemplatespwamanifestwebmanifest)
@@ -92,19 +93,31 @@ there speculatively.
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
-├── core/                   The single Django app so far
+├── core/                   Site-wide pages and the PWA plumbing
 │   ├── views.py            index page and /healthz
 │   ├── tests.py
 │   ├── apps.py
-│   ├── migrations/         empty: no models yet
+│   ├── migrations/         empty: no models
 │   └── templates/
-│       ├── core/index.html         the page
+│       ├── base.html               the shell every page extends
+│       ├── core/index.html         the home page
+│       ├── core/offline.html       shown offline in place of private pages
 │       └── pwa/
 │           ├── manifest.webmanifest   rendered as a Django template
 │           └── sw.js                  rendered as a Django template
+├── accounts/               Profiles, pictures, push, account deletion (§3.6)
+│   ├── models.py           ProfilePicture, PushSubscription
+│   ├── views.py, urls.py   /profile/..., /push/...
+│   ├── forms.py            sign-up name fields, profile form
+│   ├── pictures.py         upload → 256 px JPEG
+│   ├── push.py             send_to_user()
+│   ├── middleware.py       no-store on private pages
+│   ├── management/commands/generate_vapid_keys.py
+│   └── templates/          profile pages, plus overrides of allauth's
 ├── static/                 Authored static assets (source for collectstatic)
 │   ├── css/app.css
-│   ├── js/app.js           SW registration, install button, status display
+│   ├── js/app.js           SW registration, install button, status, sign-out
+│   ├── js/profile.js       turning push on and off for a device
 │   └── icons/*.png         placeholder icons
 ├── tools/make_icons.py     Generates the placeholder icons (Pillow)
 ├── manage.py
@@ -118,8 +131,8 @@ there speculatively.
 ```
 
 Django convention splits the *project* (`config/`, which holds settings and wiring)
-from *apps* (`core/`, which holds features). Future milestones should add new apps
-next to `core` rather than growing `core`. The likely ones are `accounts`, `games`
+from *apps* (`core/`, `accounts/`, which hold features). Future milestones should
+add new apps next to them rather than growing `core`. The likely ones are `games`
 and `ledger`, which map onto the PLAN.md milestones.
 
 ---
@@ -138,6 +151,12 @@ prod, and Compose supplies different environments.
 | `DJANGO_DEBUG` | `"1"` turns debug on. Anything else, including unset, means off. Secure by default. |
 | `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated, parsed by the small `env_list()` helper. The example `.env` allows `.trycloudflare.com` so quick tunnels work for phone testing. |
 | `POSTGRES_*` | Database connection. `POSTGRES_HOST` defaults to `db`, the Compose service name. |
+| `DJANGO_HTTPS` | `"1"` marks the session and CSRF cookies Secure. Off by default because the stack starts on plain HTTP. |
+| `EMAIL_*`, `DEFAULT_FROM_EMAIL` | SMTP for confirmation and reset emails. Without `EMAIL_HOST`, mail goes to the console (the container log). |
+| `GOOGLE_*`, `APPLE_*` | Social sign-in. Each provider appears only once its credentials are set. |
+| `VAPID_*` | The Web Push key pair. Push is off until both keys are set. |
+
+[ACCOUNTS.md](ACCOUNTS.md) says how to obtain each of the last four.
 
 Other choices in this file:
 
@@ -153,9 +172,16 @@ Other choices in this file:
 - **`TIME_ZONE = "America/Chicago"`** with `USE_TZ = True`. Datetimes are stored in
   UTC and shown in local time. Game times will depend on this.
 - **`DEFAULT_AUTO_FIELD = BigAutoField`**, the modern default.
-- The admin, auth, sessions and messages contrib apps are installed. That gives a
-  working `/admin/` and the tables `django-allauth` will build on in the Login
-  milestone.
+- The admin, auth, sessions and messages contrib apps are installed, plus
+  `django-allauth` (account and socialaccount, Google and Apple providers) and
+  `accounts`. `accounts` is listed before allauth so its templates override
+  allauth's.
+- **`CACHES` is the database cache.** allauth keeps its rate limits in the cache,
+  and the default per-process cache would give each gunicorn worker its own
+  allowance. Its table comes from `createcachetable`, which runs at startup next
+  to `migrate`.
+- **Sessions last 180 days and roll forward** (`SESSION_SAVE_EVERY_REQUEST`), so
+  the installed app doesn't keep asking for a password. See §3.6.
 
 ### 3.2 URL routing (`config/urls.py`)
 
@@ -166,6 +192,10 @@ Other choices in this file:
 | `/sw.js` | `TemplateView` → `pwa/sw.js` | `application/javascript` |
 | `/manifest.webmanifest` | `TemplateView` → `pwa/manifest.webmanifest` | `application/manifest+json` |
 | `/admin/` | Django admin | No superuser exists until you create one |
+| `/accounts/...` | allauth | Sign in/up/out, email confirmation, password reset and change, email addresses, Google, Apple, re-authentication |
+| `/profile/`, `/profile/picture/<id>/`, `/profile/delete/` | `accounts.views` | §3.6 |
+| `/push/subscribe/`, `/push/unsubscribe/`, `/push/test/` | `accounts.views` | JSON from `profile.js` and `app.js` |
+| `/offline/` | `TemplateView` → `core/offline.html` | Pre-cached by the service worker |
 | `/static/...` | WhiteNoise middleware | Not in `urls.py` at all |
 
 The important decision here is that **`sw.js` is served from the site root through
@@ -192,8 +222,11 @@ Two function views share one helper:
 
 ### 3.4 Models and migrations
 
-There are none yet. `core/migrations/` holds only `__init__.py`. The `migrate` run
-at startup creates Django's built-in tables (auth, admin, sessions, contenttypes).
+Members are Django's built-in `User`, which holds the name; there is no custom
+user model. Swapping one in now would mean rewriting migrations already applied
+to running databases. allauth adds `EmailAddress` (with its verified flag) and
+`SocialAccount`. `accounts` adds `ProfilePicture` and `PushSubscription` (§3.6).
+`core` has no models.
 
 When the ledger arrives, keep to the constraint PLAN.md sets: money is
 `DecimalField`, never float, and records carry non-editable creation timestamps.
@@ -239,11 +272,63 @@ The Android project also reloads the page offline and expects it from the cache.
 The iOS project skips that test because Playwright's WebKit fails an offline
 navigation before the service worker sees it.
 
+`accounts.spec.js` adds the account flows: sign-up reaching the "confirm your
+email" page, the profile redirecting to sign-in, and, signed in, sign-out,
+signed-in pages staying out of the worker's cache, and the offline fallback.
+The signed-in tests need a member whose address is already confirmed;
+`e2e/create-member.sh` makes one in the running stack and prints its
+credentials (`eval "$(./e2e/create-member.sh)" && ./e2e/run.sh`), and CI runs
+it before the suite. Without `E2E_EMAIL`, those tests are skipped.
+
 `e2e/run.sh` runs the suite inside Microsoft's Playwright image
 (`mcr.microsoft.com/playwright`), which ships the browsers and their system
 libraries, so it needs only Docker. The image tag in `run.sh` must match the
 `@playwright/test` version in `package.json`. `.dockerignore` keeps `e2e/` out of
 the `web` image.
+
+### 3.6 Accounts (`accounts/`)
+
+Operator setup (email, Google, Apple, push keys) is in [ACCOUNTS.md](ACCOUNTS.md).
+This section covers how the code fits together.
+
+**allauth does the accounts themselves.** Sign-up, sign-in, email
+confirmation, password reset and change, extra email addresses, Google and
+Apple are configuration in `settings.py`, not our code. The policy:
+
+- email is the only login field (`ACCOUNT_LOGIN_METHODS = {"email"}`) and must be
+  confirmed before the first sign-in (`ACCOUNT_EMAIL_VERIFICATION = "mandatory"`);
+- `accounts.forms.SignupForm` adds first and last name to the sign-up form;
+- Google and Apple are listed in `SOCIALACCOUNT_PROVIDERS` only when their
+  environment variables are set, and allauth shows no button for an unlisted
+  provider. Their addresses count as confirmed, and they join an existing
+  account with the same address (`SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT`);
+- `/admin/` keeps Django's username login, so an existing superuser still works.
+
+allauth's pages extend `allauth/layouts/base.html`. `accounts` overrides that one
+template to extend the site's `base.html`, whose blocks have the same names, so
+every allauth page gets the PWA head and header. A few of allauth's "element"
+templates (button, provider) are overridden to add CSS classes.
+
+**`accounts` holds what allauth doesn't:**
+
+| Piece | What it does |
+|---|---|
+| `profile` view | Name and picture. Links to allauth's pages for email, password and connected accounts |
+| `ProfilePicture` + `pictures.py` | Uploads are decoded, turned upright, cropped and re-encoded as a 256 px JPEG in a `BinaryField`. The size check runs before decoding, and decompression bombs are refused. Re-encoding strips EXIF (GPS), and no uploaded byte is served back. In Postgres so `pg_dump` covers it. Served by `profile_picture` to signed-in members, with a timestamped URL so it can be cached |
+| `delete_account` view | Behind allauth's `@reauthentication_required`: the password must have been re-entered in the last 5 minutes. Cascades to everything the member owns |
+| `PushSubscription` + `push.py` | One row per device. `send_to_user()` encrypts and signs each message (pywebpush, VAPID) and deletes subscriptions the push service reports gone |
+| `push_subscribe` / `push_unsubscribe` | JSON endpoints for `profile.js` and `app.js`. Subscribing accepts only HTTPS endpoints on the known push services, because the server later POSTs to that URL and an arbitrary one would let a member aim it at internal hosts |
+| `PrivatePagesMiddleware` | `Cache-Control: no-store, private` on every response to a signed-in member, and on `/accounts/`, `/profile/`, `/push/` and `/admin/` for everyone. The service worker honours it (§4.3) |
+| `context_processors.member` | The header's name, initials and picture URL. It reads the picture's timestamp, never its bytes |
+
+**Push, end to end:** `profile.js` asks permission (from the tap itself, which
+iOS requires), calls `pushManager.subscribe()` with the VAPID public key, and
+POSTs the subscription to `/push/subscribe/`. Later, `send_to_user()` POSTs an
+encrypted message to the device's endpoint at Google, Mozilla, Apple or
+Microsoft, which wakes `sw.js`. Its `push` handler shows the notification, and
+`notificationclick` focuses or opens the app at the message's URL (same origin
+only). On sign-out, `app.js` unsubscribes the device first, so a shared phone
+doesn't keep receiving the previous member's notifications.
 
 ---
 
@@ -279,16 +364,24 @@ planFC's service worker.
 
 It follows the standard *app shell* lifecycle:
 
-1. **install**: pre-cache `SHELL` (CSS, JS, one icon) into a cache named
-   `CACHE_VERSION`, then `skipWaiting()` so the new worker takes over immediately.
+1. **install**: pre-cache `SHELL` (CSS, JS, one icon) and `/offline/` into a cache
+   named `CACHE_VERSION`, then `skipWaiting()` so the new worker takes over
+   immediately. `/offline/` is fetched without cookies, so the cached copy never
+   shows whoever was signed in at the time.
 2. **activate**: delete every cache whose name isn't `CACHE_VERSION`, then
    `clients.claim()` so open tabs are controlled without a reload.
 3. **fetch**, which uses one of three strategies:
    - **Non-GET**: not intercepted. The comment says it plainly: a ledger must never
      serve a POST from cache.
-   - **Navigations (pages)**: *network-first*. Fetch fresh and store a copy. If
-     offline, fall back to the cached copy of that page, then to the cached `/`.
-     Members should never see a stale game list while they're online.
+   - **Navigations (pages)**: *network-first*. Fetch fresh and store a copy,
+     unless the response says `no-store` or `private`, which every signed-in page
+     does (§3.6). If offline, fall back to the cached copy of that page, then to
+     `/offline/`. Members should never see a stale game list while they're
+     online, and the cache never holds one member's pages for the next person on
+     the device.
+4. **push** and **notificationclick**: show a notification from
+   `{title, body, url}`, and on a tap, focus an open window or open one at `url`
+   (same origin only). See §3.6.
    - **Everything else**: *cache-first*. Serve the cached copy if there is one,
      otherwise go to the network. This is safe because static URLs are
      content-hashed.
@@ -339,8 +432,8 @@ doesn't rebuild dependencies. Other details:
 - `collectstatic` runs **at build time** with a throwaway secret key, because
   settings refuse to load without one. Static files are therefore part of the
   immutable image.
-- `CMD` runs `migrate`, then `exec gunicorn config.wsgi:application` with 3
-  workers. The migration lives in `CMD` rather than an `ENTRYPOINT`, so one-off
+- `CMD` runs `migrate`, `createcachetable` (for the database cache, §3.1), then
+  `exec gunicorn config.wsgi:application` with 3 workers. The migration lives in `CMD` rather than an `ENTRYPOINT`, so one-off
   commands like `docker compose run web python manage.py test` skip it.
 
 ### 5.2 Compose: one file for deployers, an overlay for developers
@@ -523,17 +616,16 @@ the Foundation is meant to prove.
   payment data exists.
 - **`/healthz` is unused.** Adding it as a `healthcheck:` on `web` in
   `compose.yaml` would let Compose, and later monitoring, see a degraded app.
-- **The service worker caches every page it navigates to.** That's harmless for a
-  public status page. Once logins exist, it would store per-member pages, including
-  balances, in the browser cache, and could show them offline to whoever uses the
-  device next. Before the Login milestone ships, either exclude authenticated pages
-  from the navigation cache or clear the caches on logout.
-- **The offline fallback to `/` only works after `/` has been visited online,**
-  because `/` isn't in the pre-cached `SHELL`.
-- **Security headers for HTTPS** (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
-  HSTS) aren't set yet. They should turn on once the site runs on a real domain.
-- **Single app.** `core` is a placeholder. Put real features in their own apps
-  ([§2](#2-repository-layout)) so the ledger's models and tests stay separate.
+- **Secure cookies are opt-in.** `DJANGO_HTTPS=1` turns on `SESSION_COOKIE_SECURE`
+  and `CSRF_COOKIE_SECURE`; production must set it once it runs on a real domain.
+  HSTS isn't set yet.
+- **Account deletion cascades.** Fine with no ledger. The ledger must not
+  cascade from `User`; see [ACCOUNTS.md](ACCOUNTS.md#known-limitations).
+- **No email provider by default.** Without one, confirmation links go to the
+  container log and members can't sign up by themselves.
+- **Keep features in their own apps.** Put games and the ledger in new apps
+  ([§2](#2-repository-layout)) rather than in `core` or `accounts`, so their
+  models and tests stay separate.
 
 ---
 
@@ -629,8 +721,8 @@ for anything that isn't a GET.
   worker file whenever the shell changes, and delete old caches in `activate`.
 - **Caching private data.** Cache Storage belongs to the browser profile, not to
   the logged-in user. Pages cached for one member can be shown offline to the
-  next person who uses the same device. See
-  [§7](#7-known-gaps-and-things-to-watch).
+  next person who uses the same device. planFC avoids this by never caching a
+  `no-store` response; see [§4.3](#43-the-service-worker-coretemplatespwaswjs).
 - **Debugging.** Chrome DevTools → *Application* → *Service workers* and *Cache
   storage* show the installed worker and its caches, and can unregister it or
   clear them. On iOS the equivalent is Safari's Web Inspector connected to the

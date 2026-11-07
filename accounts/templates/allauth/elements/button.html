@@ -1,0 +1,18 @@
+{% load allauth %}
+{% comment %} djlint:off {% endcomment %}
+{% comment %}
+allauth's button, plus classes from its tags: "outline" and "secondary"
+render as a secondary button, "danger" and "delete" as a red one, and any
+link becomes a button-styled link.
+{% endcomment %}
+<{% if attrs.href %}a href="{{ attrs.href }}"{% else %}button{% endif %}
+ class="{% if attrs.href %}button {% endif %}{% if 'outline' in attrs.tags or 'secondary' in attrs.tags %}secondary {% endif %}{% if 'danger' in attrs.tags or 'delete' in attrs.tags %}danger{% endif %}"
+{% if attrs.form %}form="{{ attrs.form }}"{% endif %}
+{% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+{% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+{% if attrs.value %}value="{{ attrs.value }}"{% endif %}
+{% if attrs.type %}type="{{ attrs.type }}"{% endif %}
+>
+{% slot %}
+{% endslot %}
+</{% if attrs.href %}a{% else %}button{% endif %}>

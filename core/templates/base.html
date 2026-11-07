@@ -1,0 +1,51 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block head_title %}{% endblock %} · {{ app_name }}</title>
+
+<link rel="manifest" href="{% url 'manifest' %}">
+<meta name="theme-color" content="{{ theme_color }}">
+
+<!-- iOS ignores the manifest's icons when adding to the home screen and reads
+     this link instead; without it the icon is a screenshot of the page. -->
+<link rel="apple-touch-icon" href="{% static icon_dir|add:'icon_180.png' %}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ app_name }}">
+
+<link rel="icon" href="{% static icon_dir|add:'icon_192.png' %}">
+<link rel="stylesheet" href="{% static 'css/app.css' %}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{% url 'index' %}">
+    <img src="{% static icon_dir|add:'icon_192.png' %}" alt="" width="28" height="28">
+    <span>planFC</span>
+    {% if is_dev %}<span class="badge badge-small">Dev</span>{% endif %}
+  </a>
+  {% if user.is_authenticated %}
+    <a class="me" href="{% url 'profile' %}" aria-label="Your profile">
+      <span class="me-name">{{ member_name }}</span>
+      {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="small" %}
+    </a>
+  {% else %}
+    <a class="signin-link" href="{% url 'account_login' %}">Sign in</a>
+  {% endif %}
+</header>
+
+<main class="{% block main_class %}{% endblock %}">
+  {% if messages %}
+    <ul class="messages" role="status">
+      {% for message in messages %}<li class="message {{ message.tags }}">{{ message }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{% static 'js/app.js' %}"></script>
+{% block extra_body %}{% endblock %}
+</body>
+</html>

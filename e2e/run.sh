@@ -16,7 +16,7 @@ PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.63.0-noble
 # caller's uid keeps node_modules and the reports deletable afterwards.
 exec docker run --rm --network host --ipc host \
   --user "$(id -u):$(id -g)" -e HOME=/tmp \
-  -e CI -e BASE_URL \
+  -e CI -e BASE_URL -e E2E_EMAIL -e E2E_PASSWORD \
   -v "$PWD:/e2e" -w /e2e \
   "$PLAYWRIGHT_IMAGE" \
   sh -c 'npm ci --no-audit --no-fund && npx playwright test "$@"' playwright-test "$@"
