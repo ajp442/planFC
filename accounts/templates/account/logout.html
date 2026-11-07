@@ -1,0 +1,15 @@
+{% extends "account/base_manage.html" %}
+{% comment %}
+allauth's page, with the form marked js-logout so static/js/app.js turns off
+this device's notifications before signing out.
+{% endcomment %}
+{% block head_title %}Sign out{% endblock head_title %}
+{% block content %}
+    <h1>Sign out</h1>
+    <p>Are you sure you want to sign out?</p>
+    <form method="post" action="{% url 'account_logout' %}" class="js-logout">
+        {% csrf_token %}
+        {{ redirect_field }}
+        <button type="submit">Sign out</button>
+    </form>
+{% endblock content %}

@@ -5,8 +5,10 @@ Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope a
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for running a development and a production
 instance side by side on one machine.
 
-This repository currently holds the **Foundation proof of concept**: a Django app
-behind Caddy with Postgres, installable as a PWA, running under Docker Compose.
+This repository holds the **Foundation proof of concept** (a Django app behind
+Caddy with Postgres, installable as a PWA, running under Docker Compose) and the
+**Login system**: accounts with email, Google and Apple sign-in, profiles, and
+push notifications. See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
 
 ## Prerequisites
 
@@ -84,6 +86,14 @@ Chromium (Android Chrome's engine) and an iPhone 15 on WebKit (iOS Safari's). Wi
 ./e2e/run.sh --project ios    # one device
 ```
 
+The signed-in tests need a confirmed member, which a browser can't create
+without reading email. This makes one in the running stack (development and CI
+only), then runs everything:
+
+```
+eval "$(./e2e/create-member.sh)" && ./e2e/run.sh
+```
+
 This needs only Docker, because the browsers come in Microsoft's Playwright image.
 Emulation checks the service worker, manifest, icons and offline cache under both
 engines. It can't check installing or standalone mode, so try those on a real
@@ -103,7 +113,8 @@ publishes the image only if they pass on both.
 | `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass, then publishes a release with its version matrix |
 | `e2e/` | Playwright browser tests in emulated Android and iOS devices |
 | `config/` | Django settings, URLs, WSGI entrypoint |
-| `core/` | The hello-world view, health check, PWA templates, tests |
+| `core/` | The home page, health check, base and PWA templates, tests |
+| `accounts/` | Profiles, pictures, push notifications, account deletion; sign-in itself is django-allauth |
 | `static/` | Stylesheet, install-prompt JavaScript, placeholder icons |
 | `tools/version_matrix.py` | Records and renders the third-party versions in each released image |
 | `tools/make_icons.py` | Regenerates the placeholder icons; delete once we have a real crest |
@@ -121,5 +132,9 @@ publishes the image only if they pass on both.
 - **The Postgres volume is not a backup.** `pgdata` survives `docker compose down`,
   but not `down -v`, and not a dead disk. Before any real payment data exists, we
   need scheduled `pg_dump` output written somewhere off this machine.
-- **No authentication yet.** That is the next milestone; `django-allauth` is the
-  intended route.
+- **Sign-up needs email.** Members must confirm their address before they can
+  sign in. Without an email provider configured, the confirmation link is in
+  `docker compose logs web`. Setting up email, Google, Apple and push
+  notifications is in [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
+- **An admin account** for `/admin/`:
+  `docker compose run --rm web python manage.py createsuperuser`.

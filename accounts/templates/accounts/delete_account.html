@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block head_title %}Delete account{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Delete your account?</h1>
+  <p>This permanently removes:</p>
+  <ul>
+    <li>your name, email address and profile picture,</li>
+    <li>your password and any Google or Apple sign-in,</li>
+    <li>notifications on all your devices.</li>
+  </ul>
+  <p>It can't be undone. You can create a new account later, but it starts empty.</p>
+  <form method="post" class="js-logout">
+    {% csrf_token %}
+    <button type="submit" class="danger">Delete my account</button>
+  </form>
+  <p><a href="{% url 'profile' %}">Keep my account</a></p>
+</div>
+{% endblock %}

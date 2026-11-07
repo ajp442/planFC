@@ -37,5 +37,6 @@ EXPOSE 8000
 
 # The production path. Migrating here rather than in an entrypoint means
 # one-off commands (`run web python manage.py test`) skip it. Dev overrides
-# this with runserver in compose.override.yaml.
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+# this with runserver in compose.override.yaml. createcachetable makes the
+# cache table allauth's rate limits live in; it does nothing once it exists.
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py createcachetable && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]

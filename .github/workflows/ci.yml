@@ -62,8 +62,13 @@ jobs:
           docker compose -f compose.yaml up -d
           timeout 90 sh -c 'until curl -fsS http://localhost:8080/healthz; do sleep 2; done'
 
+      # create-member.sh makes a confirmed account for the signed-in tests
+      # (a confirmation email can't reach the browser) and prints its
+      # credentials as exports.
       - name: Browser tests (Android Chrome and iOS Safari engines)
-        run: ./e2e/run.sh
+        run: |
+          eval "$(COMPOSE_FILE=compose.yaml ./e2e/create-member.sh)"
+          ./e2e/run.sh
 
       - name: Container logs
         if: failure()
