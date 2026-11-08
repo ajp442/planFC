@@ -51,7 +51,7 @@ services:
     environment:
       # ":80" serves plain HTTP on any hostname, which is enough for localhost,
       # where browsers already grant service workers a secure context. A domain
-      # name (planfc.com) makes Caddy obtain and renew a Let's Encrypt
+      # name (myplanfc.com) makes Caddy obtain and renew a Let's Encrypt
       # certificate on its own; publish ports 80 and 443 for that.
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:

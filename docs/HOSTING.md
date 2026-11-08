@@ -1,7 +1,7 @@
 # Hosting planFC: decision and action plan
 
 **Decision (2026-11-07):** production runs on `corncob`, the dedicated laptop on our
-home network, and the public reaches it at `https://planfc.com` through a **named
+home network, and the public reaches it at `https://myplanfc.com` through a **named
 Cloudflare Tunnel**. A VPS is deferred to keep costs down. We revisit this only if one
 of the [triggers in §5](#5-when-to-revisit) happens.
 
@@ -22,7 +22,7 @@ explains why we chose this route and lists the steps to get there.
 
 `cloudflared`, a small Cloudflare program, runs beside the stack on corncob. It opens
 an **outbound** connection to Cloudflare, and Cloudflare sends visitors to
-`planfc.com` down that connection. Compared with the alternatives:
+`myplanfc.com` down that connection. Compared with the alternatives:
 
 | | Cloudflare Tunnel (chosen) | Port forwarding + dynamic DNS | Small VPS |
 |---|---|---|---|
@@ -51,7 +51,7 @@ Phone ──HTTPS──▶ Cloudflare edge ──encrypted tunnel──▶ cloud
 ```
 
 1. **Phone → Cloudflare: encrypted.** This is ordinary HTTPS, using Cloudflare's
-   certificate for `planfc.com`.
+   certificate for `myplanfc.com`.
 2. **Inside Cloudflare's servers: decrypted.** Cloudflare has to read each request
    to route and filter it, so its servers briefly hold the plain contents:
    passwords typed at sign-in, session cookies, member details and ledger pages.
@@ -70,7 +70,7 @@ acceptable. If that changes, §5 says what to do.
 
 | Item | Cost |
 |---|---|
-| `planfc.com` at Cloudflare Registrar (sold at cost, WHOIS privacy included) | about $10–11 per year |
+| `myplanfc.com` at Cloudflare Registrar (sold at cost, WHOIS privacy included) | about $10–11 per year |
 | Cloudflare DNS, Tunnel and the Zero Trust free plan | $0 |
 | Public HTTPS certificate | $0 (Cloudflare issues and renews it) |
 | Off-site backup storage (Cloudflare R2 or Backblaze B2 free tier) | $0 at our size |
@@ -85,13 +85,17 @@ Work through these phases in order. Each step ends in something you can check.
 
 ### Phase 1: Buy the domain
 
-- [ ] Create a Cloudflare account. Turn on two-factor authentication straight
-      away, because whoever controls this account controls the domain.
-- [ ] Check that `planfc.com` is available in Cloudflare Registrar. If it isn't,
-      agree on another name before continuing.
-- [ ] Buy it. Turn on auto-renew. Leave the registrar lock on.
-- [ ] Check: the domain appears under *Websites* in the dashboard, using
-      Cloudflare's nameservers.
+`myplanfc.com` was bought from Cloudflare Registrar on 2026-11-07. (`planfc.com`,
+the name first suggested, wasn't used.) The remaining items are account hygiene
+worth confirming once:
+
+- [x] Buy `myplanfc.com` from Cloudflare Registrar.
+- [ ] Two-factor authentication is on for the Cloudflare account. Whoever controls
+      this account controls the domain.
+- [ ] Auto-renew is on, and the registrar lock is on.
+- [ ] Check: the domain appears under *Domains* in the dashboard, using
+      Cloudflare's nameservers. A domain bought from Cloudflare uses them
+      automatically.
 
 ### Phase 2: Code changes (one PR, before production uses the tunnel)
 
@@ -128,11 +132,11 @@ Work through these phases in order. Each step ends in something you can check.
 - [ ] Go to *Networks → Tunnels → Create a tunnel*, choose **Cloudflared**, and
       name it `planfc-corncob`.
 - [ ] Copy the tunnel token. Treat it like a password: anyone who has it can serve
-      traffic for planfc.com.
-- [ ] Add a public hostname: `planfc.com` → service type **HTTP** → URL
+      traffic for myplanfc.com.
+- [ ] Add a public hostname: `myplanfc.com` → service type **HTTP** → URL
       `caddy:80`. The name `caddy` resolves because `cloudflared` runs on the same
       Compose network.
-- [ ] Optional: add `www.planfc.com` the same way, or set up a redirect rule from
+- [ ] Optional: add `www.myplanfc.com` the same way, or set up a redirect rule from
       `www` to the bare domain.
 - [ ] Check: the tunnel shows up in the list. It reports *Inactive* until Phase 4
       starts `cloudflared`.
@@ -144,13 +148,13 @@ option **C**:
 
 - [ ] Take `compose.yaml` and `.env.example` from the release cut in Phase 2.
 - [ ] Set `COMPOSE_PROFILES=tunnel` and `CLOUDFLARE_TUNNEL_TOKEN=<token>`.
-- [ ] Add `planfc.com` to `DJANGO_ALLOWED_HOSTS` and `https://planfc.com` to
+- [ ] Add `myplanfc.com` to `DJANGO_ALLOWED_HOSTS` and `https://myplanfc.com` to
       `DJANGO_CSRF_TRUSTED_ORIGINS`. Set `DJANGO_HTTPS=1`.
 - [ ] Leave `SITE_ADDRESS` at its default `:80` and the host ports at 8080/8443.
       **Don't forward any ports on the router.**
 - [ ] `docker compose pull && docker compose up -d`.
 - [ ] Check: the tunnel shows *Healthy* in the dashboard, and
-      `curl -fsS https://planfc.com/healthz` from any machine reports the expected
+      `curl -fsS https://myplanfc.com/healthz` from any machine reports the expected
       version.
 
 ### Phase 5: Cloudflare settings
@@ -166,10 +170,10 @@ option **C**:
 ### Phase 6: Prove it works (Foundation done condition)
 
 - [ ] Sign up on a phone. Check that the confirmation link in the email starts with
-      `https://planfc.com`. This shows the Phase 2 Caddy fix works.
+      `https://myplanfc.com`. This shows the Phase 2 Caddy fix works.
 - [ ] Sign in with Google, once the OAuth client lists
-      `https://planfc.com` (see [ACCOUNTS.md](ACCOUNTS.md)).
-- [ ] Install the PWA from `https://planfc.com` on a real iPhone and a real Android
+      `https://myplanfc.com` (see [ACCOUNTS.md](ACCOUNTS.md)).
+- [ ] Install the PWA from `https://myplanfc.com` on a real iPhone and a real Android
       phone.
 
 ### Phase 7: What the domain unlocks next
@@ -181,7 +185,7 @@ option **C**:
       any real payment data exists. It matters more with home hosting, because the
       ledger otherwise sits on one disk in one house.
 - [ ] **Uptime monitoring:** a free external checker (e.g. UptimeRobot) on
-      `https://planfc.com/healthz`, so we learn about an outage before members do.
+      `https://myplanfc.com/healthz`, so we learn about an outage before members do.
 
 ## 5. When to revisit
 

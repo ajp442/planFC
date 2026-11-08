@@ -45,7 +45,7 @@ Each milestone should be complete and well vetted before moving onto the next mi
 ### Foundation
 - A mobile-friendly web app (installable as a PWA — home screen icon, no store)
   - Avoids app store developer fees, review cycles on every release, and store payment rules, while still giving members a home screen icon.
-- We need a catchy URL (something like planfc.com if it is available).
+- The site lives at **myplanfc.com**, bought from Cloudflare Registrar on 2026-11-07.
 - HTTPS is free and automatic. Behind the Cloudflare Tunnel (see hosting below), Cloudflare issues and
   renews the public certificate. If we later serve the domain directly, Caddy does the same with
   Let's Encrypt from a two-line config. Neither needs a purchased certificate or a renewal cron job.
@@ -62,7 +62,7 @@ Each milestone should be complete and well vetted before moving onto the next mi
   - This would be a relatively low traffic site (maybe a max of 500 users). we typically only have
     about 30-40 active users. Every candidate stack was fast enough; speed decided nothing here.
 - Hosting: **decided 2026-11-07**. Production runs on the home laptop (`corncob`) behind a named
-  Cloudflare Tunnel at planfc.com. A VPS is deferred to keep costs down. The decision, the
+  Cloudflare Tunnel at myplanfc.com. A VPS is deferred to keep costs down. The decision, the
   step-by-step action plan and the triggers for revisiting it are in
   [`docs/HOSTING.md`](docs/HOSTING.md).
   - The tunnel removes the usual problems with home hosting. No router ports are opened, a
@@ -100,13 +100,13 @@ Each milestone should be complete and well vetted before moving onto the next mi
     simulator for Linux — the iOS Simulator ships inside Xcode and requires macOS — so iOS testing
     uses a physical iPhone, with `ios-webkit-debug-proxy` when we need a console.
   - Testing on any phone needs a trusted certificate, since both Safari and Chrome refuse to register
-    a service worker over plain HTTP. Production gets it from the named tunnel at planfc.com.
+    a service worker over plain HTTP. Production gets it from the named tunnel at myplanfc.com.
     Dev stacks keep using a throwaway Cloudflare quick tunnel.
 - Our set up must include unit tests, as this will be easier to implement and maintain right from the start.
   - Unit tests alone will not cover the riskiest logic: money arithmetic, and the signup/waitlist
     race when two members tap at the same instant. Those need integration tests against a real
     database, not mocks.
-- Foundation is done when a placeholder PWA installs from planfc.com on a real iPhone and a real
+- Foundation is done when a placeholder PWA installs from myplanfc.com on a real iPhone and a real
   Android phone over HTTPS, deploys through CI, and has been restored from backup once.
   - The rule above says each milestone should be complete and well vetted before the next one starts.
     That needs a test someone can run, not a feeling.
