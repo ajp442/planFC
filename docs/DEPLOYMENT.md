@@ -3,9 +3,9 @@
 This explains how to start a **development** instance and a **production** instance
 of planFC, and how to run both at once on the dedicated laptop, `corncob`. For why
 the Compose files are shaped this way, see
-[ARCHITECTURE.md §5](ARCHITECTURE.md#5-containers-and-deployment). For whether the
-laptop should host production at all, see the hosting notes in
-[`PLAN.md`](../PLAN.md).
+[ARCHITECTURE.md §5](ARCHITECTURE.md#5-containers-and-deployment). For why
+production is on this laptop behind a Cloudflare Tunnel, and the steps to set
+that up, see [HOSTING.md](HOSTING.md).
 
 ## Contents
 
@@ -215,9 +215,34 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net,.tryc
 DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080,https://*.trycloudflare.com
 ```
 
-**B. Serving planfc.com directly.** The domain's DNS must point at this network's
-public IP, and the router must forward TCP 80 and 443 to corncob. Caddy then
-obtains the certificate by itself:
+**C. planfc.com through the Cloudflare Tunnel (the chosen route).** Needs the
+`cloudflared` service and Caddy change from
+[HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel),
+and a tunnel token from Phase 3. Don't forward any router ports. Caddy stays on
+plain HTTP, and Cloudflare provides the certificate:
+
+```ini
+DJANGO_SECRET_KEY=<new random value>
+POSTGRES_PASSWORD=<new random value>
+PLANFC_VERSION=<the release with the tunnel service>
+
+COMPOSE_PROFILES=tunnel
+CLOUDFLARE_TUNNEL_TOKEN=<token from the Cloudflare dashboard>
+HTTP_PORT=8080
+HTTPS_PORT=8443
+DJANGO_ALLOWED_HOSTS=planfc.com,localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net
+DJANGO_CSRF_TRUSTED_ORIGINS=https://planfc.com,http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080
+DJANGO_HTTPS=1
+```
+
+`DJANGO_HTTPS=1` makes the session cookie Secure, so signing in only works over
+`https://planfc.com`. The LAN addresses still serve pages, but they can't be used
+to sign in.
+
+**B. Serving planfc.com directly** (the fallback if we leave Cloudflare; see
+[HOSTING.md §5](HOSTING.md#5-when-to-revisit)). The domain's DNS must point at
+this network's public IP, and the router must forward TCP 80 and 443 to corncob.
+Caddy then obtains the certificate by itself:
 
 ```ini
 DJANGO_SECRET_KEY=<new random value>
@@ -238,7 +263,7 @@ cd /srv/planfc
 docker compose pull
 docker compose up -d
 docker compose ps                       # all three should be Up, db (healthy)
-curl -fsS http://localhost/healthz      # use https://planfc.com/healthz in option B
+curl -fsS http://localhost/healthz      # use https://planfc.com/healthz in options B and C
 docker compose exec web python manage.py createsuperuser
 ```
 
@@ -346,12 +371,14 @@ cd /srv/planfc && docker compose restart web
 - **Backups don't exist yet.** The `pg_dump` in §5.2 runs by hand and writes to the
   same disk. Before any real payment data exists, PLAN.md requires scheduled dumps
   written off this machine, and a restore that has actually been tested.
-- **A residential connection.** Option B needs ports 80 and 443 open on the router
-  and a stable public IP, or dynamic DNS. Many ISPs block or forbid inbound
-  traffic on those ports. A named Cloudflare Tunnel avoids opening any port.
+- **The tunnel isn't built yet.** Option C depends on the `cloudflared` service
+  and Caddy change in
+  [HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel).
+  Until those ship, production can only be reached on the LAN (option A).
 - **HTTPS security settings** (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, HSTS)
   aren't turned on yet. See [ARCHITECTURE.md §7](ARCHITECTURE.md#7-known-gaps-and-things-to-watch).
 - **The laptop is a single point of failure.** One disk, one house, one power
-  supply. PLAN.md recommends moving production to a small VPS before money flows
-  through it. The process above transfers to a VPS unchanged; only the directory's
-  host changes.
+  supply. We accepted this to avoid VPS costs (see [HOSTING.md](HOSTING.md)), so
+  off-site backups and uptime monitoring are required. If outages become
+  something members notice, the process above transfers to a VPS unchanged; only
+  the directory's host changes.

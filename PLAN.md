@@ -46,9 +46,9 @@ Each milestone should be complete and well vetted before moving onto the next mi
 - A mobile-friendly web app (installable as a PWA — home screen icon, no store)
   - Avoids app store developer fees, review cycles on every release, and store payment rules, while still giving members a home screen icon.
 - We need a catchy URL (something like planfc.com if it is available).
-- TLS certificates come from Let's Encrypt, obtained and renewed automatically by Caddy.
-  - Caddy is the reverse proxy in front of Django and does this from a two-line config, so the
-    certificate is a line in the `Caddyfile` rather than a task. Free, and renewal needs no cron job.
+- HTTPS is free and automatic. Behind the Cloudflare Tunnel (see hosting below), Cloudflare issues and
+  renews the public certificate. If we later serve the domain directly, Caddy does the same with
+  Let's Encrypt from a two-line config. Neither needs a purchased certificate or a renewal cron job.
   - This is not only about the padlock. Service workers refuse to run on insecure origins, so HTTPS
     is a hard prerequisite for the PWA installing at all, not a finishing touch.
 - The stack is Django (Python) with PostgreSQL.
@@ -61,14 +61,19 @@ Each milestone should be complete and well vetted before moving onto the next mi
   - Python's native `Decimal` suits a money ledger. Whatever we do, balances never touch floats.
   - This would be a relatively low traffic site (maybe a max of 500 users). we typically only have
     about 30-40 active users. Every candidate stack was fast enough; speed decided nothing here.
-- Need to figure out where/how to host this site.
-  - The proof of concept runs on the Ubuntu laptop, which is enough to prove the stack and the PWA.
-  - Real use probably wants a small VPS (~$5-7/month). Residential connections have dynamic IPs and
-    usually block or forbid inbound 80/443; the ledger would sit on one disk in one house; payment
-    webhooks and reminder emails assume uptime; and whoever owns the laptop becomes on-call. That is
-    less per year than one member's share of a couple of games.
-  - Decide before the first real payment data exists, because that is the point where the laptop's
-    failure modes stop being an inconvenience and start being a dispute about money.
+- Hosting: **decided 2026-11-07**. Production runs on the home laptop (`corncob`) behind a named
+  Cloudflare Tunnel at planfc.com. A VPS is deferred to keep costs down. The decision, the
+  step-by-step action plan and the triggers for revisiting it are in
+  [`docs/HOSTING.md`](docs/HOSTING.md).
+  - The tunnel removes the usual problems with home hosting. No router ports are opened, a
+    changing home IP or ISP CGNAT doesn't matter, and the home IP stays hidden. It costs only
+    the domain (about $10–11 a year).
+  - The accepted trade-off is that Cloudflare decrypts traffic at its edge to route it, so it
+    could read logins and ledger pages. Nothing crosses the internet unencrypted.
+  - Still true from the original analysis: the ledger sits on one disk in one house, and payment
+    webhooks and reminder emails assume uptime. Off-site backups and uptime monitoring are
+    therefore part of the plan, not optional. Move to a VPS (~$5–7/month) if outages become
+    something members notice. The compose stack moves unchanged.
 - Use containers to spin up the website.
   -  CI/CD support is also another reason to use containers, as this can improve testing and delivery using pipelines.
   - Compose, not Kubernetes: three services (`db`, `web`, `caddy`). An orchestrator at this scale
@@ -95,8 +100,8 @@ Each milestone should be complete and well vetted before moving onto the next mi
     simulator for Linux — the iOS Simulator ships inside Xcode and requires macOS — so iOS testing
     uses a physical iPhone, with `ios-webkit-debug-proxy` when we need a console.
   - Testing on any phone needs a trusted certificate, since both Safari and Chrome refuse to register
-    a service worker over plain HTTP. Until planfc.com resolves somewhere real, a Cloudflare quick
-    tunnel supplies an HTTPS URL.
+    a service worker over plain HTTP. Production gets it from the named tunnel at planfc.com.
+    Dev stacks keep using a throwaway Cloudflare quick tunnel.
 - Our set up must include unit tests, as this will be easier to implement and maintain right from the start.
   - Unit tests alone will not cover the riskiest logic: money arithmetic, and the signup/waitlist
     race when two members tap at the same instant. Those need integration tests against a real

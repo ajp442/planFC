@@ -3,7 +3,8 @@
 Pickup game planning for our football club. See [`PLAN.md`](PLAN.md) for scope and milestones,
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the code is designed, and
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for running a development and a production
-instance side by side on one machine.
+instance side by side on one machine. [`docs/HOSTING.md`](docs/HOSTING.md) records where
+production is hosted, and why.
 
 This repository currently holds the **Foundation proof of concept**: a Django app
 behind Caddy with Postgres, installable as a PWA, running under Docker Compose.
@@ -117,9 +118,9 @@ publishes the image only if they pass on both.
 - **Testing install on a phone needs HTTPS.** Browsers grant `http://localhost` a
   secure context, so desktop Chrome installs fine, but a phone reaching this laptop
   over the LAN gets plain HTTP and will refuse to register the service worker.
-  Options: a Cloudflare Tunnel, Tailscale, or waiting until planfc.com resolves to
-  a real host with a real certificate. For the latter, set `SITE_ADDRESS=planfc.com`,
-  `HTTP_PORT=80` and `HTTPS_PORT=443` in `.env`; Caddy handles the certificate.
+  For a dev stack, use a Cloudflare quick tunnel or Tailscale. Production will be
+  served at planfc.com through a named Cloudflare Tunnel. The decision and the
+  setup plan are in [`docs/HOSTING.md`](docs/HOSTING.md).
 - **The Postgres volume is not a backup.** `pgdata` survives `docker compose down`,
   but not `down -v`, and not a dead disk. Before any real payment data exists, we
   need scheduled `pg_dump` output written somewhere off this machine.
