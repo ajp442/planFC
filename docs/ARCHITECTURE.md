@@ -412,7 +412,7 @@ The whole Caddyfile is:
 
 `SITE_ADDRESS` defaults to `:80`, which means plain HTTP on any hostname. That is
 enough for `localhost`, because browsers treat localhost as a secure context for
-service workers. Setting it to a domain such as `planfc.com`, with host ports
+service workers. Setting it to a domain such as `myplanfc.com`, with host ports
 80/443, makes Caddy obtain and renew a Let's Encrypt certificate by itself. HTTPS is
 a hard requirement for installing the PWA on a phone. Production gets it from a
 named Cloudflare Tunnel instead ([HOSTING.md](HOSTING.md)): Cloudflare terminates

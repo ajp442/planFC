@@ -32,7 +32,7 @@ that up, see [HOSTING.md](HOSTING.md).
 | `web` image | `planfc-dev-<you>-web`, built from your working tree | `ghcr.io/ajp442/planfc:<version>`, published by CI |
 | Server | `runserver`, reloads on save, `DEBUG` on | gunicorn with 3 workers, `DEBUG` off |
 | Source | bind-mounted from the clone | baked into the image |
-| URL on corncob | zjp: <http://localhost:8081>, ajp: <http://localhost:8082> (see §4) | <http://localhost:8080>; later <https://planfc.com> |
+| URL on corncob | zjp: <http://localhost:8081>, ajp: <http://localhost:8082> (see §4) | <http://localhost:8080>; later <https://myplanfc.com> |
 | Starts at boot | yes, if it was running when the machine went down | yes (`restart: unless-stopped`) |
 | Looks like | amber "FC DEV" icon, named **planFC Dev**, a Development badge on the page | green "FC" icon, named **planFC** |
 | Version shown | `dev` | the release, e.g. `0.1.3 (a1b2c3d)` |
@@ -52,7 +52,7 @@ daemon. Five things keep them from interfering:
    pick up the dev overlay by accident, and each directory reads its own `.env`.
 3. **Separate host ports.** On corncob, production uses the defaults, 8080 and
    8443, because Tailscale Serve already holds port 80 for the writing group site.
-   It moves to 80 and 443 once planfc.com points at corncob. Each dev stack sets
+   It moves to 80 and 443 once myplanfc.com points at corncob. Each dev stack sets
    its own ports in its clone's `.env` (see the port table in §4).
 4. **Different looks.** `compose.override.yaml` sets `PLANFC_ENVIRONMENT=development`,
    which swaps in the amber icons from `static/icons/dev/`, renames the app to
@@ -143,7 +143,7 @@ takes the next free ports (8083 and 8446) and adds a row to this table.
 
 ### Testing on a phone
 
-Phones need HTTPS before they will register the service worker. While planfc.com
+Phones need HTTPS before they will register the service worker. While myplanfc.com
 doesn't resolve to anything yet, a Cloudflare quick tunnel provides it.
 `cloudflared` isn't installed on corncob yet; install it from Cloudflare's apt
 repository, then run:
@@ -215,7 +215,7 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net,.tryc
 DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080,https://*.trycloudflare.com
 ```
 
-**C. planfc.com through the Cloudflare Tunnel (the chosen route).** Needs the
+**C. myplanfc.com through the Cloudflare Tunnel (the chosen route).** Needs the
 `cloudflared` service and Caddy change from
 [HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel),
 and a tunnel token from Phase 3. Don't forward any router ports. Caddy stays on
@@ -230,16 +230,16 @@ COMPOSE_PROFILES=tunnel
 CLOUDFLARE_TUNNEL_TOKEN=<token from the Cloudflare dashboard>
 HTTP_PORT=8080
 HTTPS_PORT=8443
-DJANGO_ALLOWED_HOSTS=planfc.com,localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net
-DJANGO_CSRF_TRUSTED_ORIGINS=https://planfc.com,http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080
+DJANGO_ALLOWED_HOSTS=myplanfc.com,localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net
+DJANGO_CSRF_TRUSTED_ORIGINS=https://myplanfc.com,http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080
 DJANGO_HTTPS=1
 ```
 
 `DJANGO_HTTPS=1` makes the session cookie Secure, so signing in only works over
-`https://planfc.com`. The LAN addresses still serve pages, but they can't be used
+`https://myplanfc.com`. The LAN addresses still serve pages, but they can't be used
 to sign in.
 
-**B. Serving planfc.com directly** (the fallback if we leave Cloudflare; see
+**B. Serving myplanfc.com directly** (the fallback if we leave Cloudflare; see
 [HOSTING.md §5](HOSTING.md#5-when-to-revisit)). The domain's DNS must point at
 this network's public IP, and the router must forward TCP 80 and 443 to corncob.
 Caddy then obtains the certificate by itself:
@@ -249,11 +249,11 @@ DJANGO_SECRET_KEY=<new random value>
 POSTGRES_PASSWORD=<new random value>
 PLANFC_VERSION=0.1.1
 
-SITE_ADDRESS=planfc.com
+SITE_ADDRESS=myplanfc.com
 HTTP_PORT=80
 HTTPS_PORT=443
-DJANGO_ALLOWED_HOSTS=planfc.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://planfc.com
+DJANGO_ALLOWED_HOSTS=myplanfc.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://myplanfc.com
 ```
 
 Then start it:
@@ -263,7 +263,7 @@ cd /srv/planfc
 docker compose pull
 docker compose up -d
 docker compose ps                       # all three should be Up, db (healthy)
-curl -fsS http://localhost/healthz      # use https://planfc.com/healthz in options B and C
+curl -fsS http://localhost/healthz      # use https://myplanfc.com/healthz in options B and C
 docker compose exec web python manage.py createsuperuser
 ```
 

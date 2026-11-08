@@ -119,7 +119,7 @@ publishes the image only if they pass on both.
   secure context, so desktop Chrome installs fine, but a phone reaching this laptop
   over the LAN gets plain HTTP and will refuse to register the service worker.
   For a dev stack, use a Cloudflare quick tunnel or Tailscale. Production will be
-  served at planfc.com through a named Cloudflare Tunnel. The decision and the
+  served at myplanfc.com through a named Cloudflare Tunnel. The decision and the
   setup plan are in [`docs/HOSTING.md`](docs/HOSTING.md).
 - **The Postgres volume is not a backup.** `pgdata` survives `docker compose down`,
   but not `down -v`, and not a dead disk. Before any real payment data exists, we
