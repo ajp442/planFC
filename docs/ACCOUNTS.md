@@ -38,7 +38,7 @@ EMAIL_HOST=smtp.resend.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=resend
 EMAIL_HOST_PASSWORD=<api key>
-DEFAULT_FROM_EMAIL=planFC <noreply@planfc.com>
+DEFAULT_FROM_EMAIL=planFC <noreply@myplanfc.com>
 ```
 
 The sending domain needs the provider's SPF and DKIM records, or Gmail files
@@ -62,7 +62,7 @@ browsers never send a Secure cookie over HTTP, so signing in would silently fail
 1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials),
    create a project, configure the OAuth consent screen (External; app name
    planFC), and create an **OAuth client ID** of type *Web application*.
-2. Authorised redirect URI: `https://planfc.com/accounts/google/login/callback/`.
+2. Authorised redirect URI: `https://myplanfc.com/accounts/google/login/callback/`.
    For local testing, add `http://localhost:8080/accounts/google/login/callback/`,
    since Google allows plain HTTP for localhost only.
 3. Put the client ID and secret in `.env` as `GOOGLE_CLIENT_ID` and
@@ -81,8 +81,8 @@ sign up with email or Google without it.
 
 1. In Certificates, Identifiers & Profiles, create an **App ID** with Sign in
    with Apple enabled, then a **Services ID** (e.g. `com.planfc.web`) linked to
-   it. Under the Services ID, add the domain `planfc.com` and the return URL
-   `https://planfc.com/accounts/apple/login/callback/`. Apple accepts HTTPS
+   it. Under the Services ID, add the domain `myplanfc.com` and the return URL
+   `https://myplanfc.com/accounts/apple/login/callback/`. Apple accepts HTTPS
    only, so this can't be tried on localhost; use a tunnel or the real domain.
 2. Create a **Key** with Sign in with Apple enabled and download the `.p8` file.
    It can only be downloaded once.
