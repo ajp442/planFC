@@ -414,9 +414,13 @@ The whole Caddyfile is:
 enough for `localhost`, because browsers treat localhost as a secure context for
 service workers. Setting it to a domain such as `planfc.com`, with host ports
 80/443, makes Caddy obtain and renew a Let's Encrypt certificate by itself. HTTPS is
-a hard requirement for installing the PWA on a phone. Until the domain exists, a
-Cloudflare quick tunnel provides it, which is why `.trycloudflare.com` appears in
-the example allowed hosts.
+a hard requirement for installing the PWA on a phone. Production gets it from a
+named Cloudflare Tunnel instead ([HOSTING.md](HOSTING.md)): Cloudflare terminates
+HTTPS, `cloudflared` forwards to Caddy over plain HTTP, and `SITE_ADDRESS` stays
+`:80`. For Django to see those requests as HTTPS, Caddy must trust the tunnel's
+`X-Forwarded-Proto` header (`trusted_proxies`). That change is planned but not
+made yet. Dev stacks use a throwaway quick tunnel, which is why `.trycloudflare.com`
+appears in the example allowed hosts.
 
 ### 5.4 Configuration surface (`.env`)
 
