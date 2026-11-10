@@ -76,7 +76,8 @@ Each milestone should be complete and well vetted before moving onto the next mi
     something members notice. The compose stack moves unchanged.
 - Use containers to spin up the website.
   -  CI/CD support is also another reason to use containers, as this can improve testing and delivery using pipelines.
-  - Compose, not Kubernetes: three services (`db`, `web`, `caddy`). An orchestrator at this scale
+  - Compose, not Kubernetes: three services (`db`, `web`, `caddy`), plus `cloudflared` where a stack
+    is served through the tunnel. An orchestrator at this scale
     would be complexity with nothing to manage.
   - Containers also decouple the app from the hosting question above. Laptop, VPS, or a PaaS that
     consumes a Dockerfile are then the same deployment pointed somewhere else.

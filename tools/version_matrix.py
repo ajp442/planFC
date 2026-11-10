@@ -5,7 +5,7 @@
 
 `collect` runs the already-pushed image once per platform and asks it for its
 OS, Python and installed packages, then resolves the other images compose.yaml
-names (Postgres, Caddy). Those are pinned to exact versions, but official images
+names (Postgres, Caddy, cloudflared). Those are pinned to exact versions, but official images
 are rebuilt under the same tag for OS patches, so their digest is what the tag
 held on the day of the release. `render` turns any number of those records into one matrix, newest
 release first. CI attaches both to the GitHub release for each version tag.
@@ -14,11 +14,13 @@ Standard library only, so it runs on a bare CI runner. Needs Docker.
 """
 
 import argparse
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+import tarfile
 
 # Run inside the image. `python` is whatever the image puts on PATH, which is
 # exactly the interpreter gunicorn runs under.
@@ -52,19 +54,40 @@ def compose_images(compose_file):
     # Compose refuses to render without the required variables, whose values
     # are irrelevant to which images it names.
     env = dict(os.environ, DJANGO_SECRET_KEY="x", POSTGRES_PASSWORD="x")
+    # --profile '*': services behind a profile (cloudflared) ship in the same
+    # file, but `config` leaves them out unless their profile is active.
     out = subprocess.run(
-        ["docker", "compose", "-f", compose_file, "config", "--images"],
+        ["docker", "compose", "-f", compose_file, "--profile", "*", "config", "--images"],
         check=True, stdout=subprocess.PIPE, text=True, env=env,
     ).stdout
     return sorted(set(out.split()))
+
+
+def read_file(image, platform, path):
+    """A file's text from an image, without running anything inside it.
+
+    Distroless images (cloudflared) have no shell or `cat` to run, so the
+    file is copied out of a created, never-started container instead.
+    /etc/os-release is often a symlink, which `docker cp` -L follows.
+    """
+    container = run("docker", "create", "--platform", platform, image).strip()
+    try:
+        archive = subprocess.run(
+            ["docker", "cp", "-L", f"{container}:{path}", "-"],
+            check=True, stdout=subprocess.PIPE,
+        ).stdout
+    finally:
+        run("docker", "rm", container)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        member = tar.next()
+        return tar.extractfile(member).read().decode()
 
 
 def probe_companion(image, platform):
     run("docker", "pull", "--quiet", "--platform", platform, image)
     inspect = json.loads(run("docker", "image", "inspect", image))[0]
     env = dict(e.split("=", 1) for e in inspect["Config"].get("Env", []))
-    os_release = run("docker", "run", "--rm", "--platform", platform, "--entrypoint", "cat", image, "/etc/os-release")
-    pretty = re.search(r'^PRETTY_NAME="?(.*?)"?$', os_release, re.M)
+    pretty = re.search(r'^PRETTY_NAME="?(.*?)"?$', read_file(image, platform, "/etc/os-release"), re.M)
     return {
         "digest": (inspect.get("RepoDigests") or [""])[0].partition("@")[2],
         "os": pretty.group(1) if pretty else "",

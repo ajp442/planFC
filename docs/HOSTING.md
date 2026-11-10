@@ -99,30 +99,28 @@ worth confirming once:
 
 ### Phase 2: Code changes (one PR, before production uses the tunnel)
 
-- [ ] **Make Caddy trust the forwarded protocol from the tunnel.** Django decides
+- [x] **Make Caddy trust the forwarded protocol from the tunnel.** Django decides
       whether a request is HTTPS from `X-Forwarded-Proto`
-      (`SECURE_PROXY_SSL_HEADER` in `config/settings.py`). At the moment Caddy
-      overwrites that header with `http`, because the tunnel connects to it over
-      HTTP. Django would then build `http://` links in confirmation emails and in
-      the Google sign-in redirect, and Google sign-in would fail. Add a global
-      `servers { trusted_proxies static private_ranges }` block to the inline
-      Caddyfile in `compose.yaml`. This also trusts the header from other machines
-      on the LAN, which is acceptable for us. A tighter alternative is to trust
-      only the Compose network's subnet.
-- [ ] **Add a `cloudflared` service to `compose.yaml`** under a Compose profile
-      (e.g. `profiles: [tunnel]`), so development stacks don't start it. Pin an
-      exact `cloudflare/cloudflared` image version, like the other images. Run it
-      with `tunnel --no-autoupdate run`, and read the token from
-      `TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}`. Make it depend on `caddy` and
-      set `restart: unless-stopped`.
-- [ ] **Document the new variables in `.env.example`:** `COMPOSE_PROFILES=tunnel`
-      and `CLOUDFLARE_TUNNEL_TOKEN=`.
-- [ ] **Check the release version matrix.** `tools/version_matrix.py` lists images
-      with `docker compose config --images`, which leaves out services whose
-      profile isn't active. Make sure the CI step that runs it enables the `tunnel`
-      profile, or that the matrix lists `cloudflared` some other way.
-- [ ] Merge the Login system branch first, or at the same time. It adds
-      `DJANGO_HTTPS`, which marks cookies Secure once the site is served over HTTPS.
+      (`SECURE_PROXY_SSL_HEADER` in `config/settings.py`). Caddy used to overwrite
+      that header with `http`, because the tunnel connects to it over HTTP. Django
+      would then have built `http://` links in confirmation emails and sign-in
+      redirects. The inline Caddyfile in `compose.yaml` now has
+      `servers { trusted_proxies static private_ranges }`. This also trusts the
+      header from machines on the LAN, which is acceptable: it only changes how
+      Django labels its own links and cookies.
+- [x] **Add a `cloudflared` service to `compose.yaml`** under the `tunnel` profile,
+      so only stacks that ask for it start it. Image
+      `cloudflare/cloudflared:2026.10.4`, pinned and updated by Dependabot like the
+      others. It reads its token from `CLOUDFLARE_TUNNEL_TOKEN`. An empty or
+      invalid token makes it exit with an error, and `docker compose ps` shows it
+      restarting.
+- [x] **Document the new variables in `.env.example`:** `COMPOSE_PROFILES=tunnel`
+      and `CLOUDFLARE_TUNNEL_TOKEN`.
+- [x] **Keep the release version matrix complete.** `tools/version_matrix.py` now
+      asks Compose for every profile's images. It also reads each image's
+      `/etc/os-release` by copying the file out, since the `cloudflared` image is
+      distroless and has no `cat` to run. Otherwise the release job would fail.
+- [x] Merge the Login system branch, which adds `DJANGO_HTTPS`.
 - [ ] Cut a release with these changes.
 
 ### Phase 3: Create the tunnel in Cloudflare
@@ -130,7 +128,7 @@ worth confirming once:
 - [ ] In the dashboard, open *Zero Trust*. On first use, pick the **Free** plan.
       It may ask for a payment method even though the plan costs nothing.
 - [ ] Go to *Networks → Tunnels → Create a tunnel*, choose **Cloudflared**, and
-      name it `planfc-corncob`.
+      name it `planfc-prod`.
 - [ ] Copy the tunnel token. Treat it like a password: anyone who has it can serve
       traffic for myplanfc.com.
 - [ ] Add a public hostname: `myplanfc.com` → service type **HTTP** → URL
@@ -186,6 +184,61 @@ option **C**:
       ledger otherwise sits on one disk in one house.
 - [ ] **Uptime monitoring:** a free external checker (e.g. UptimeRobot) on
       `https://myplanfc.com/healthz`, so we learn about an outage before members do.
+
+### Phase 8: Dev stacks on subdomains (optional)
+
+The same domain also serves the dev stacks, each on its own subdomain:
+
+| Stack | Address | Tunnel | Port on corncob |
+|---|---|---|---|
+| Production | `myplanfc.com` | `planfc-prod` | 8080 |
+| zjp dev | `zjp-dev.myplanfc.com` | `planfc-zjp-dev` | 8081 |
+| ajp dev | `ajp-dev.myplanfc.com` | `planfc-ajp-dev` | 8082 |
+
+- **Use one level only:** `zjp-dev.myplanfc.com`, not `zjp.dev.myplanfc.com`.
+  Cloudflare's free certificate covers `myplanfc.com` and `*.myplanfc.com`, but not
+  names further down. Those need a paid add-on.
+- **One tunnel per stack.** Each stack is a separate Compose project with its own
+  network, so its `cloudflared` can only reach its own `caddy`, and the route is
+  `caddy:80` in every tunnel. Separate tunnels also mean rebuilding a dev stack
+  never touches production's tunnel, and a leaked dev token can't serve
+  production traffic.
+- **Each subdomain is a separate site to browsers.** Sign-ins, installed PWAs and
+  offline caches never mix, so production and dev can sit side by side on one
+  phone. Don't set a cookie domain in Django, or that separation is lost.
+
+Steps for each dev stack:
+
+- [ ] Create a tunnel (e.g. `planfc-zjp-dev`) with the public hostname
+      `zjp-dev.myplanfc.com` → **HTTP** → `caddy:80`, as in Phase 3.
+- [ ] **Put the dev sites behind Cloudflare Access before starting the tunnel.** Dev
+      stacks run with `DJANGO_DEBUG=1` and Django's development server
+      (`compose.override.yaml`). Debug error pages show code and settings, so
+      they mustn't be open to the internet. In *Zero Trust → Access →
+      Applications*, add a **self-hosted** application covering
+      `zjp-dev.myplanfc.com` and `ajp-dev.myplanfc.com`, with an **Allow** policy
+      for our two email addresses. Cloudflare then emails a one-time code to
+      anyone who visits. The free plan covers up to 50 users. Use a long session
+      duration (e.g. one month), so an installed dev app isn't sent back to the
+      Access login every day.
+- [ ] In the clone's `.env`, beside the ports it already sets:
+
+  ```ini
+  COMPOSE_PROFILES=tunnel
+  CLOUDFLARE_TUNNEL_TOKEN=<this stack's token>
+  DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,.trycloudflare.com,zjp-dev.myplanfc.com
+  DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8081,https://*.trycloudflare.com,https://zjp-dev.myplanfc.com
+  ```
+
+  Leave `DJANGO_HTTPS` at 0 on dev stacks. Cookies without the Secure flag still
+  work over HTTPS, so signing in works both at the subdomain and at
+  `localhost`. Leave `EMAIL_HOST` unset, so confirmation emails go to the logs
+  instead of real inboxes.
+- [ ] `docker compose up -d --build`. Then open the subdomain, pass the Access
+      check, and sign in.
+- [ ] For Google sign-in on that stack, add its callback,
+      `https://zjp-dev.myplanfc.com/accounts/google/login/callback/`, to the
+      OAuth client ([ACCOUNTS.md](ACCOUNTS.md)).
 
 ## 5. When to revisit
 

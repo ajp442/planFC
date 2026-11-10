@@ -5,7 +5,7 @@
 # and merged (or closed) by hand.
 version: 2
 updates:
-  # Postgres and Caddy in compose.yaml.
+  # Postgres, Caddy and cloudflared in compose.yaml.
   - package-ecosystem: docker-compose
     directory: /
     schedule:
