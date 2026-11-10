@@ -85,11 +85,47 @@ services:
       - web
     restart: unless-stopped
 
+  # Serves the site at its public hostname through a Cloudflare Tunnel: an
+  # outbound connection to Cloudflare, so no router port is opened and the
+  # home IP never matters. Cloudflare holds the public certificate, and routes
+  # the hostname to http://caddy:80 (set in its dashboard, not here). Only
+  # stacks with COMPOSE_PROFILES=tunnel start it; each stack needs its own
+  # tunnel and token. Setup and trade-offs: docs/HOSTING.md.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.4
+    profiles: [tunnel]
+    # The image's entrypoint is `cloudflared --no-autoupdate`: Dependabot and
+    # a release move the version, not the container updating itself.
+    command: tunnel run
+    environment:
+      # Optional here so stacks without the profile still start; cloudflared
+      # refuses to run if it is empty.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
+    restart: unless-stopped
+
 configs:
   # Inline so this file is the only one to download. $$ keeps Compose from
   # interpolating it; Caddy reads {$SITE_ADDRESS} from its own environment.
+  #
+  # trusted_proxies: a request arriving through the tunnel reaches Caddy over
+  # plain HTTP from cloudflared, which says in X-Forwarded-Proto that the
+  # visitor used HTTPS. Caddy only passes that header on from addresses it
+  # trusts, and otherwise overwrites it with "http", in which case Django
+  # (SECURE_PROXY_SSL_HEADER) would build http:// links in confirmation
+  # emails and Google/Apple sign-in redirects. cloudflared sits on the
+  # Compose network, a private range. So does anything on the LAN, which can
+  # therefore claim HTTPS too; that only changes how Django labels its own
+  # links and cookies, not who may sign in.
   caddyfile:
     content: |
+      {
+      	servers {
+      		trusted_proxies static private_ranges
+      	}
+      }
+
       {$$SITE_ADDRESS} {
       	encode gzip
       	reverse_proxy web:8000

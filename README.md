@@ -69,8 +69,8 @@ GHCR makes a new package private, so after the first publish set its visibility 
 public under the package settings on GitHub.
 
 Each release on GitHub lists the third-party versions its image contains, per
-architecture: the base OS, Python, every Python package, and the Postgres and Caddy
-versions `compose.yaml` pins. Dependabot proposes updates to all of them. The matrix across all releases is at
+architecture: the base OS, Python, every Python package, and the Postgres, Caddy
+and cloudflared versions `compose.yaml` pins. Dependabot proposes updates to all of them. The matrix across all releases is at
 <https://github.com/ajp442/planFC/releases/latest/download/VERSIONS.md>, and each
 release's `versions.json` has the same data with full digests.
 
@@ -110,7 +110,7 @@ publishes the image only if they pass on both.
 
 | Path | Purpose |
 |---|---|
-| `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline) |
+| `compose.yaml` | The whole deployment: `db` (Postgres 17), `web` (the published image), `caddy` (reverse proxy, config inline), and `cloudflared` (Cloudflare Tunnel, only with `COMPOSE_PROFILES=tunnel`) |
 | `compose.override.yaml` | Dev overlay: project `planfc-dev`, build from source, bind mount, `runserver` |
 | `Dockerfile` | The `web` image. Migrates, then runs gunicorn; static files baked in |
 | `.github/workflows/ci.yml` | Tests the built image; pushes it on version tags once tests pass, then publishes a release with its version matrix |

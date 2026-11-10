@@ -50,7 +50,9 @@ an existing file don't need an update.
 ## 1. The system at a glance
 
 planFC is a server-rendered Django application backed by PostgreSQL. It runs behind
-a Caddy reverse proxy, and all three run as containers under Docker Compose. The
+a Caddy reverse proxy, and all three run as containers under Docker Compose. In
+production a fourth container, `cloudflared`, brings public traffic in through a
+Cloudflare Tunnel ([§5.3](#53-caddy-and-tls)). The
 browser side is a Progressive Web App (PWA): ordinary HTML pages plus a web app
 manifest and a service worker, so members can install it to their home screen
 without going through an app store.
@@ -58,13 +60,18 @@ without going through an app store.
 ```mermaid
 flowchart LR
     phone["Browser / installed PWA<br/>(app.js, sw.js)"]
+    edge["Cloudflare edge<br/>HTTPS for myplanfc.com"]
     subgraph compose["Docker Compose project: planfc"]
-        caddy["caddy<br/>caddy:2.11.4-alpine<br/>TLS + reverse proxy"]
+        tunnel["cloudflared<br/>profile: tunnel"]
+        caddy["caddy<br/>caddy:2.11.7-alpine<br/>TLS + reverse proxy"]
         web["web<br/>ghcr.io/ajp442/planfc<br/>Django + gunicorn + WhiteNoise"]
         db[("db<br/>postgres:17.11-alpine")]
         pgdata[/"pgdata volume"/]
     end
-    phone -- "HTTP(S) :8080 / :8443<br/>(80/443 once production has a domain)" --> caddy
+    phone -- "https://myplanfc.com" --> edge
+    edge -- "outbound tunnel" --> tunnel
+    tunnel -- "http://caddy:80" --> caddy
+    phone -. "LAN: HTTP :8080" .-> caddy
     caddy -- "reverse_proxy web:8000" --> web
     web -- "psycopg, port 5432" --> db
     db --- pgdata
@@ -72,7 +79,8 @@ flowchart LR
 
 | Layer | Technology | Where it's defined |
 |---|---|---|
-| Edge / TLS | Caddy 2 (exact version pinned) | `compose.yaml` (`caddy` service and the inline `caddyfile` config) |
+| Public edge / TLS | Cloudflare Tunnel: `cloudflared` (exact version pinned) | `compose.yaml` (`cloudflared` service, `tunnel` profile); hostname routes in the Cloudflare dashboard |
+| Reverse proxy | Caddy 2 (exact version pinned) | `compose.yaml` (`caddy` service and the inline `caddyfile` config) |
 | Application | Django 5.2, gunicorn (prod) or `runserver` (dev) | `config/`, `core/`, `Dockerfile` |
 | Static files | WhiteNoise, baked into the image | `config/settings.py`, `Dockerfile` |
 | Database | PostgreSQL 17 (exact version pinned) | `compose.yaml` (`db` service) |
@@ -497,6 +505,12 @@ The two modes behave like this:
 The whole Caddyfile is:
 
 ```
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 {$SITE_ADDRESS} {
 	encode gzip
 	reverse_proxy web:8000
@@ -510,10 +524,23 @@ service workers. Setting it to a domain such as `myplanfc.com`, with host ports
 a hard requirement for installing the PWA on a phone. Production gets it from a
 named Cloudflare Tunnel instead ([HOSTING.md](HOSTING.md)): Cloudflare terminates
 HTTPS, `cloudflared` forwards to Caddy over plain HTTP, and `SITE_ADDRESS` stays
-`:80`. For Django to see those requests as HTTPS, Caddy must trust the tunnel's
-`X-Forwarded-Proto` header (`trusted_proxies`). That change is planned but not
-made yet. Dev stacks use a throwaway quick tunnel, which is why `.trycloudflare.com`
-appears in the example allowed hosts.
+`:80`.
+
+`cloudflared` is in `compose.yaml` under the `tunnel` profile, so it starts only
+where `.env` sets `COMPOSE_PROFILES=tunnel` and `CLOUDFLARE_TUNNEL_TOKEN`. The
+hostname-to-`caddy:80` route lives in the Cloudflare dashboard, not in any file
+here. Each stack (production, and each dev stack that wants a subdomain) uses its
+own tunnel.
+
+`trusted_proxies` is what makes Django see tunnelled requests as HTTPS.
+`cloudflared` reaches Caddy over plain HTTP and reports the visitor's scheme in
+`X-Forwarded-Proto`. By default Caddy overwrites that header with `http`, and
+Django (`SECURE_PROXY_SSL_HEADER`) would then build `http://` links in
+confirmation emails and sign-in redirects. Trusting private ranges covers the
+Compose network that `cloudflared` sits on. Clients on the LAN can now claim HTTPS
+too, but that only changes how Django labels its own links and cookies. Dev stacks
+can also use a throwaway quick tunnel, which is why `.trycloudflare.com` appears
+in the example allowed hosts.
 
 ### 5.4 Configuration surface (`.env`)
 

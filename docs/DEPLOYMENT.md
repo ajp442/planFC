@@ -40,7 +40,9 @@ that up, see [HOSTING.md](HOSTING.md).
 ## 2. What keeps them apart
 
 Both instances run the same three services, `db`, `web` and `caddy`, on one Docker
-daemon. Five things keep them from interfering:
+daemon. A fourth, `cloudflared`, starts only in stacks whose `.env` sets
+`COMPOSE_PROFILES=tunnel`. Each of those stacks has its own Cloudflare Tunnel
+([HOSTING.md](HOSTING.md)). Five things keep them from interfering:
 
 1. **Separate Compose project names.** `compose.yaml` sets `name: planfc`, and
    `compose.override.yaml` overrides it with `name: planfc-dev`. Docker derives
@@ -52,7 +54,9 @@ daemon. Five things keep them from interfering:
    pick up the dev overlay by accident, and each directory reads its own `.env`.
 3. **Separate host ports.** On corncob, production uses the defaults, 8080 and
    8443, because Tailscale Serve already holds port 80 for the writing group site.
-   It moves to 80 and 443 once myplanfc.com points at corncob. Each dev stack sets
+   The tunnel reaches Caddy inside Docker, so serving myplanfc.com doesn't need
+   ports 80 and 443 on the host (they would only matter for option B in §5.1).
+   Each dev stack sets
    its own ports in its clone's `.env` (see the port table in §4).
 4. **Different looks.** `compose.override.yaml` sets `PLANFC_ENVIRONMENT=development`,
    which swaps in the amber icons from `static/icons/dev/`, renames the app to
@@ -143,10 +147,12 @@ takes the next free ports (8083 and 8446) and adds a row to this table.
 
 ### Testing on a phone
 
-Phones need HTTPS before they will register the service worker. While myplanfc.com
-doesn't resolve to anything yet, a Cloudflare quick tunnel provides it.
-`cloudflared` isn't installed on corncob yet; install it from Cloudflare's apt
-repository, then run:
+Phones need HTTPS before they will register the service worker. For a permanent
+address, give the stack its own subdomain and tunnel, such as
+`zjp-dev.myplanfc.com` ([HOSTING.md Phase 8](HOSTING.md#phase-8-dev-stacks-on-subdomains-optional)).
+For a one-off test, a Cloudflare quick tunnel gives a random HTTPS address with no
+setup in the dashboard. `cloudflared` isn't installed on corncob itself; install
+it from Cloudflare's apt repository, then run:
 
 ```sh
 cloudflared tunnel --url http://localhost:8081    # your dev stack's HTTP port
@@ -215,11 +221,11 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,corncob,corncob.tail1d2df3.ts.net,.tryc
 DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8080,http://corncob:8080,http://corncob.tail1d2df3.ts.net:8080,https://*.trycloudflare.com
 ```
 
-**C. myplanfc.com through the Cloudflare Tunnel (the chosen route).** Needs the
-`cloudflared` service and Caddy change from
-[HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel),
-and a tunnel token from Phase 3. Don't forward any router ports. Caddy stays on
-plain HTTP, and Cloudflare provides the certificate:
+**C. myplanfc.com through the Cloudflare Tunnel (the chosen route).** Needs a
+release that includes the `cloudflared` service
+([HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel)),
+and the token of the `planfc-prod` tunnel from Phase 3. Don't forward any router
+ports. Caddy stays on plain HTTP, and Cloudflare provides the certificate:
 
 ```ini
 DJANGO_SECRET_KEY=<new random value>
@@ -371,10 +377,9 @@ cd /srv/planfc && docker compose restart web
 - **Backups don't exist yet.** The `pg_dump` in §5.2 runs by hand and writes to the
   same disk. Before any real payment data exists, PLAN.md requires scheduled dumps
   written off this machine, and a restore that has actually been tested.
-- **The tunnel isn't built yet.** Option C depends on the `cloudflared` service
-  and Caddy change in
-  [HOSTING.md Phase 2](HOSTING.md#phase-2-code-changes-one-pr-before-production-uses-the-tunnel).
-  Until those ship, production can only be reached on the LAN (option A).
+- **The tunnel needs a release.** Option C needs a published release that
+  includes the `cloudflared` service. Until one is cut, production can only be
+  reached on the LAN (option A).
 - **HTTPS security settings** (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, HSTS)
   aren't turned on yet. See [ARCHITECTURE.md §7](ARCHITECTURE.md#7-known-gaps-and-things-to-watch).
 - **The laptop is a single point of failure.** One disk, one house, one power
