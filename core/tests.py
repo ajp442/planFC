@@ -56,6 +56,8 @@ class ProgressiveWebAppTests(TestCase):
     def test_index_links_the_manifest_and_apple_touch_icon(self):
         response = self.client.get(reverse("index"))
         self.assertContains(response, 'rel="manifest"')
+        # Fetched with cookies, or a login wall in front of the site hides it.
+        self.assertContains(response, 'crossorigin="use-credentials"')
         # iOS reads this instead of the manifest icons when adding to home screen.
         self.assertContains(response, 'rel="apple-touch-icon"')
 

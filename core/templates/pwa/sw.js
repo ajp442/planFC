@@ -1,7 +1,7 @@
 {% load static %}// Bump CACHE_VERSION whenever the shell assets change. A service worker that
 // serves a stale shell forever is the classic PWA failure, and it is invisible
 // in development because you are always hard-reloading.
-const CACHE_VERSION = "planfc-v6";
+const CACHE_VERSION = "planfc-v7";
 
 const OFFLINE_URL = "{% url 'offline' %}";
 
@@ -15,12 +15,17 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) =>
       Promise.all([
-        cache.addAll(SHELL),
+        // "reload" skips the browser's HTTP cache, which would otherwise be
+        // free to hand back the previous version of a file it still holds.
+        cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))),
         // Without cookies, so the cached copy never carries the name of
         // whoever happened to be signed in when the worker installed.
-        fetch(new Request(OFFLINE_URL, { credentials: "omit" })).then((response) =>
-          cache.put(OFFLINE_URL, response)
-        ),
+        // Allowed to fail: behind a login wall in front of the whole site a
+        // cookieless request is bounced to the login page, and losing the
+        // offline page is better than the worker never installing at all.
+        fetch(new Request(OFFLINE_URL, { credentials: "omit" }))
+          .then((response) => (response.ok ? cache.put(OFFLINE_URL, response) : undefined))
+          .catch(() => {}),
       ])
     )
   );
@@ -50,6 +55,10 @@ self.addEventListener("fetch", (event) => {
 
   // Only GETs are cacheable, and a ledger must never serve a POST from cache.
   if (request.method !== "GET") return;
+
+  // Cloudflare's own endpoints on this hostname, the Access sign-in round trip
+  // among them. Those are between the browser and Cloudflare.
+  if (new URL(request.url).pathname.startsWith("/cdn-cgi/")) return;
 
   // Network-first for pages so members never see yesterday's game list, with
   // the cache as the offline fallback. Private pages are never cached, so
