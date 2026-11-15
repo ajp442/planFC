@@ -127,6 +127,10 @@ h2 { margin: 0 0 12px; font-size: 1.125rem; }
 .dot.ok { background: var(--ok); }
 .dot.bad { background: var(--bad); }
 
+/* The browser's own rule for the hidden attribute is weaker than any display
+   set below (button, .button, .hint), so without this a hidden button shows. */
+[hidden] { display: none !important; }
+
 /* --- Buttons --------------------------------------------------------------- */
 
 button, .button {

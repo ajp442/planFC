@@ -10,6 +10,9 @@
   const modeText = document.getElementById("mode_text");
   const installButton = document.getElementById("install_button");
   const iosHint = document.getElementById("ios_hint");
+  const menuHint = document.getElementById("menu_hint");
+  const insecureHint = document.getElementById("insecure_hint");
+  const firefoxHint = document.getElementById("firefox_hint");
 
   function setStatus(dot, text, ok, message) {
     if (!dot || !text) return;
@@ -79,6 +82,7 @@
       event.preventDefault();
       deferredPrompt = event;
       installButton.hidden = false;
+      if (menuHint) menuHint.hidden = true;
     });
 
     installButton.addEventListener("click", async () => {
@@ -92,6 +96,7 @@
 
     window.addEventListener("appinstalled", () => {
       installButton.hidden = true;
+      if (menuHint) menuHint.hidden = true;
     });
   }
 
@@ -100,6 +105,26 @@
   const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
   if (iosHint && isIOS && !standalone) {
     iosHint.hidden = false;
+  }
+
+  // Everywhere else the button depends on beforeinstallprompt, which may never
+  // come: Firefox has no such event, and Chrome holds it back when the app is
+  // already installed or it has not decided the page is installable yet. The
+  // browser menu's own install item works in all of those cases, so point at
+  // it once the event has had a fair chance to fire. Plain HTTP (a phone
+  // reaching a dev machine over the LAN) can never install, so say that instead.
+  const isFirefox = /firefox/i.test(window.navigator.userAgent);
+  if (!isIOS && !standalone) {
+    if (!window.isSecureContext) {
+      if (insecureHint) insecureHint.hidden = false;
+    } else if (isFirefox) {
+      // No beforeinstallprompt to wait for, and its menu item has its own name.
+      if (firefoxHint) firefoxHint.hidden = false;
+    } else if (menuHint) {
+      setTimeout(() => {
+        if (!deferredPrompt && !isInstalled()) menuHint.hidden = false;
+      }, 3000);
+    }
   }
 
   // Exposed for profile.js, which needs the same answers.
