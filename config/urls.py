@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
+from django.views.decorators.cache import cache_control
 from django.views.generic import TemplateView
 
 from core import views
@@ -19,19 +20,27 @@ urlpatterns = [
     # Served from the site root, not /static/. A service worker's default scope
     # is the directory it is served from, so /static/sw.js could only control
     # /static/* and the PWA would never install.
+    #
+    # no-cache on both: their URLs never change, and Cloudflare caches anything
+    # ending .js at its edge for hours unless told otherwise, which would hold
+    # every phone on the previous release's worker.
     path(
         "sw.js",
-        TemplateView.as_view(
-            template_name="pwa/sw.js",
-            content_type="application/javascript",
+        cache_control(no_cache=True)(
+            TemplateView.as_view(
+                template_name="pwa/sw.js",
+                content_type="application/javascript",
+            )
         ),
         name="service_worker",
     ),
     path(
         "manifest.webmanifest",
-        TemplateView.as_view(
-            template_name="pwa/manifest.webmanifest",
-            content_type="application/manifest+json",
+        cache_control(no_cache=True)(
+            TemplateView.as_view(
+                template_name="pwa/manifest.webmanifest",
+                content_type="application/manifest+json",
+            )
         ),
         name="manifest",
     ),
