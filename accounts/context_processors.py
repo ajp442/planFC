@@ -19,7 +19,7 @@ def member(request):
         ProfilePicture.objects.filter(user=user).values_list("updated_at", flat=True).first()
     )
     return {
-        # Shows the Members link in the header.
+        # Shows the Admin menu in the header.
         "is_club_admin": is_admin(user),
         "member_name": display_name(user),
         "member_initials": initials(user),

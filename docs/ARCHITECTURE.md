@@ -333,7 +333,7 @@ templates (button, provider) are overridden to add CSS classes.
 | `PushSubscription` + `push.py` | One row per device. `send_to_user()` encrypts and signs each message (pywebpush, VAPID) and deletes subscriptions the push service reports gone |
 | `push_subscribe` / `push_unsubscribe` | JSON endpoints for `profile.js` and `app.js`. Subscribing accepts only HTTPS endpoints on the known push services, because the server later POSTs to that URL and an arbitrary one would let a member aim it at internal hosts |
 | `PrivatePagesMiddleware` | `Cache-Control: no-store, private` on every response to a signed-in member, and on `/accounts/`, `/profile/`, `/push/`, `/admin/`, `/members/` and `/invite/` for everyone. The service worker honours it (§4.3) |
-| `context_processors.member` | The header's name, initials and picture URL, and whether to show the Members link. It reads the picture's timestamp, never its bytes |
+| `context_processors.member` | The header's name, initials and picture URL, and whether to show the Admin menu (a `<details>` in `base.html` linking every admin page, since an installed app has no address bar; its Database admin item is for superusers only). It reads the picture's timestamp, never its bytes |
 
 **Roles and member management.** What admins see and do is described in
 [ADMIN_GUIDE.md](ADMIN_GUIDE.md); this is how it is built.
@@ -346,7 +346,7 @@ templates (button, provider) are overridden to add CSS classes.
   is ever needed, this is the function to change. Later apps (games, ledger)
   should use the same decorator rather than their own test.
 - **The first admin comes from the command line** (`manage.py make_admin
-  <email>`), since only an admin can make another in the app. The same command
+  <email>`, with `--superuser` for `/admin/` access too), since only an admin can make another in the app. The same command
   is the way back in if none is left.
 - **Invitations.** `create_invited_member()` makes a `User` with an unusable
   password and an unverified `EmailAddress`, and emails a link to

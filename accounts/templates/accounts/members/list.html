@@ -7,13 +7,21 @@
     <a class="button small" href="{% url 'member_add' %}">Add a member</a>
   </div>
 
+  <p class="tabs">
+    <a class="pill{% if not admins_only %} on{% endif %}" href="{% url 'member_list' %}"{% if not admins_only %} aria-current="page"{% endif %}>Everyone</a>
+    <a class="pill{% if admins_only %} on{% endif %}" href="{% url 'member_list' %}?role=admin"{% if admins_only %} aria-current="page"{% endif %}>Admins</a>
+  </p>
+
   <form method="get" class="search" role="search">
+    {% if admins_only %}<input type="hidden" name="role" value="admin">{% endif %}
     <input type="text" name="q" value="{{ query }}" placeholder="Search by name or email" aria-label="Search members" autocomplete="off">
     <button type="submit" class="secondary">Search</button>
   </form>
 
   {% if query %}
-    <p class="muted">{{ rows|length }} of {{ total }} match “{{ query }}”. <a href="{% url 'member_list' %}">Show everyone</a></p>
+    <p class="muted">{{ rows|length }} match “{{ query }}”. <a href="{% url 'member_list' %}{% if admins_only %}?role=admin{% endif %}">Clear the search</a></p>
+  {% elif admins_only %}
+    <p class="muted">{{ rows|length }} admin{{ rows|length|pluralize }}. To change someone's role, open their account: any member can be made an admin from there.</p>
   {% else %}
     <p class="muted">{{ total }} account{{ total|pluralize }}</p>
   {% endif %}

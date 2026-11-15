@@ -72,10 +72,71 @@ a { color: var(--pitch); }
   color: var(--muted);
 }
 
-.signin-link, .nav-link { font-weight: 600; text-decoration: none; }
+.signin-link { font-weight: 600; text-decoration: none; }
 
 .topnav { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.nav-link { flex: none; }
+
+/* The admin menu: a <details> whose panel hangs below the header. */
+.menu { position: relative; flex: none; }
+
+.menu summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  color: var(--pitch);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.menu summary::-webkit-details-marker { display: none; }
+
+.menu summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-top: -4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.menu[open] summary::after { margin-top: 4px; transform: rotate(225deg); }
+
+.menu-items {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  min-width: 13rem;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu-items a {
+  display: block;
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.menu-items a:hover, .menu-items a:focus-visible { background: var(--bg); }
+
+@media (prefers-color-scheme: dark) {
+  .menu summary { color: #4cc98a; }
+}
+
+.tabs { display: flex; gap: 8px; margin: 0 0 12px; }
+.tabs a { text-decoration: none; }
+.tabs .pill { padding: 6px 14px; font-size: 0.875rem; }
 
 /* --- Page ------------------------------------------------------------------ */
 
@@ -295,7 +356,7 @@ hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
   white-space: nowrap;
 }
 
-.pill-admin { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+.pill-admin, .tabs .pill.on { border-color: var(--pitch); background: var(--pitch); color: #fff; }
 .pill-deactivated { border-color: var(--bad); color: var(--bad); }
 
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 0.9375rem; }

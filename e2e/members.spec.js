@@ -23,7 +23,7 @@ test.describe("members area", () => {
 
   test("a member has no Members link and is refused the page", async ({ page }) => {
     await signIn(page, EMAIL);
-    await expect(page.locator(".topbar").getByRole("link", { name: "Members" })).toHaveCount(0);
+    await expect(page.locator("#admin_menu")).toHaveCount(0);
 
     const response = await page.goto("/members/");
     expect(response.status()).toBe(403);
@@ -34,7 +34,9 @@ test.describe("members area", () => {
     // A fresh address per run and device, so reruns never collide.
     const email = `e2e-invited-${testInfo.project.name}-${Date.now()}@example.com`;
     await signIn(page, ADMIN_EMAIL);
-    await page.locator(".topbar").getByRole("link", { name: "Members" }).click();
+    // The Admin dropdown in the header is the only way in for an installed app.
+    await page.locator("#admin_menu summary").click();
+    await page.locator("#admin_menu").getByRole("link", { name: "Members", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
     await page.getByRole("link", { name: "Add a member" }).click();

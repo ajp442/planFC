@@ -66,7 +66,10 @@ first is made once, from a terminal on the server:
    ```
 
    It answers `Your Name <you@example.com> is now an admin.`
-3. Reload the app. **Members** appears in the header.
+3. Reload the app. An **Admin** menu appears in the header.
+
+Whoever runs the server will probably want database access too. Add
+`--superuser` to the command for that; see [Django's `/admin/`](#djangos-admin).
 
 From then on, make other admins in the app
 ([Making someone an admin](#making-someone-an-admin)).
@@ -77,25 +80,39 @@ lives in `/srv/planfc` ([DEPLOYMENT.md](DEPLOYMENT.md)).
 
 ## The Members page
 
-Admins see a **Members** link in the header on every page, and a
-**Manage members** button on their profile. Members see neither, and get an
-"Admins only" page if they type the address in.
+Admins see an **Admin** menu in the header on every page. It is how you reach
+everything in this guide, including in the installed app, which has no address
+bar to type into:
 
-The page lists every account, in order of first name, with the member's email
-address and two kinds of tag:
+| Menu item | Opens |
+|---|---|
+| **Members** | Every account |
+| **Admins and roles** | The same list, showing only admins |
+| **Add a member** | The [invitation form](#adding-a-member) |
+| **Admin changes** | [The record of changes](#the-record-of-changes) |
+| **Database admin** | [Django's `/admin/`](#djangos-admin). Only shown to the few admins who have database access |
+
+Members see no Admin menu, and get an "Admins only" page if they type one of
+these addresses in. Admins also have a **Manage members** button on their
+profile.
+
+The Members page lists every account, in order of first name, with the
+member's email address and two kinds of tag:
 
 - **Admin**, on admins.
 - The account's [status](#account-status), when it is anything other than active.
 
-Search by any part of a name or email address. Tap a member to open their
-account, where every action in this guide lives.
+**Everyone** and **Admins** at the top switch between all accounts and admins
+only. Search by any part of a name or email address. Tap a member to open
+their account, where every action in this guide lives, including changing
+their role.
 
 ## Adding a member
 
 People can create their own account from the sign-in page, so you don't have to
 add anyone. Adding is for when you would rather set someone up yourself.
 
-1. **Members → Add a member.**
+1. **Admin → Add a member.**
 2. Enter their first name, last name (optional) and email address. Tick
    **Make them an admin** if they should be one from the start.
 3. **Add and send the invitation.**
@@ -159,7 +176,7 @@ another afterwards.
    one-time code to enter instead.
 3. Read what the role allows and confirm.
 
-It takes effect at once: **Members** appears in their header on their next page.
+It takes effect at once: the **Admin** menu appears in their header on their next page.
 
 **Remove the admin role** works the same way, on an admin's page. They stay a
 member and keep their account.
@@ -226,7 +243,7 @@ picture, and deleting an account.
 
 - A member's page shows the last 20 changes to that account, under
   **Changes by admins**.
-- **Members → What admins have changed** shows the 200 most recent across all
+- **Admin → Admin changes** shows the 200 most recent across all
   accounts, including deleted ones.
 
 Entries keep the names and email addresses as they were at the time, so they
@@ -257,26 +274,42 @@ admin's Members page, or in [Django's `/admin/`](#djangos-admin).
 
 ## Django's `/admin/`
 
-`/admin/` is a separate, technical tool for editing the database directly. It
-has its own username-and-password login and is not needed for anything in this
-guide. How it relates to the roles above:
+`/admin/` is a separate, technical tool for editing the database directly:
+every table, with none of the safeguards or the record of changes described
+above. Nothing in this guide needs it, and most admins should not have it.
+
+An admin has it only if their account is also a **superuser**. That can't be
+granted in the app, only from the server:
+
+```sh
+docker compose exec web python manage.py make_admin you@example.com --superuser
+```
+
+Such an admin gets a **Database admin** item in their Admin menu. It opens
+`/admin/` using the sign-in they already have, so there is no second login.
+
+How the two fit together:
 
 - An admin made in the app has Django's **staff** flag, which is what "admin"
-  means to the app. Staff alone can open `/admin/` but sees nothing there.
-- An account made with `manage.py createsuperuser` has the **superuser** flag
-  too. The app treats it as an admin, and it can edit everything in `/admin/`.
-  Such an account signs in at `/admin/` with its username. To use it in the app
-  as well, its email address has to be confirmed first: another admin can do
-  that from the Members page. It is simpler to sign up normally and run
-  `make_admin`.
-- Removing the admin role in the app clears both flags.
+  means to the app. Staff alone has no Database admin item, and would find
+  `/admin/` empty.
+- A superuser is always an admin in the app as well.
+- Removing the admin role, in the app or with `make_admin --remove`, clears
+  both flags, so it takes database access away too.
+- An account made with `manage.py createsuperuser` is a superuser with a
+  username and no confirmed email address. It can sign in at `/admin/` with
+  that username, but not in the app until its address is confirmed. Signing up
+  normally and running `make_admin --superuser` avoids that.
 
 ## Quick reference
 
 | I want to… | Do this |
 |---|---|
 | Make the very first admin | On the server: `docker compose exec web python manage.py make_admin you@example.com` |
-| Add someone | Members → Add a member |
+| Give an admin database access (`/admin/`) | On the server: the same command with `--superuser` |
+| Find any admin page | **Admin** menu in the header |
+| See who the admins are | Admin → Admins and roles |
+| Add someone | Admin → Add a member |
 | Resend a lost or expired invitation | Their page → Send the invitation again |
 | Help someone whose confirmation email never came | Their page → Mark the email as confirmed |
 | Help someone who forgot their password | Nothing: they use "Forgot your password?" on the sign-in page |
@@ -285,5 +318,5 @@ guide. How it relates to the roles above:
 | Keep someone out without losing their account | Their page → Deactivate |
 | Remove someone for good | Their page → Delete this account |
 | Fix a name or remove an unsuitable picture | Their page → Name |
-| See who changed what | Members → What admins have changed |
+| See who changed what | Admin → Admin changes |
 | Recover when no admin can sign in | On the server: `make_admin`, as for the first admin |
