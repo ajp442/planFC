@@ -140,9 +140,33 @@ class ListTests(AdminTestCase):
         self.assertNotContains(response, "sam@example.com")
 
 
+class MainMenuTests(TestCase):
+    """The menu behind the three bars and the brand in the header."""
+
+    def menu(self, response):
+        return response.content.decode().split('id="main_menu"')[1].split("</nav>")[0]
+
+    def test_visitors_are_offered_home_sign_in_and_sign_up(self):
+        menu = self.menu(self.client.get(reverse("index")))
+        for name in ("index", "account_login", "account_signup"):
+            self.assertIn(f'href="{reverse(name)}"', menu)
+        self.assertNotIn("submenu", menu)
+
+    def test_members_get_an_account_section_and_no_admin_one(self):
+        self.client.force_login(make_member())
+        menu = self.menu(self.client.get(reverse("index")))
+        self.assertIn('id="account_menu"', menu)
+        for name in ("index", "profile", "account_email", "account_change_password", "account_logout"):
+            self.assertIn(f'href="{reverse(name)}"', menu)
+        self.assertNotIn('id="admin_menu"', menu)
+
+    def test_the_menu_is_on_allauth_pages_too(self):
+        self.assertIn(reverse("account_signup"), self.menu(self.client.get(reverse("account_login"))))
+
+
 class AdminMenuTests(AdminTestCase):
-    """The header's Admin dropdown: the way to every admin page, which an
-    installed app needs because it has no address bar."""
+    """The Admin section of the main menu: the way to every admin page, which
+    an installed app needs because it has no address bar."""
 
     def menu(self, response):
         html = response.content.decode()

@@ -333,7 +333,7 @@ templates (button, provider) are overridden to add CSS classes.
 | `PushSubscription` + `push.py` | One row per device. `send_to_user()` encrypts and signs each message (pywebpush, VAPID) and deletes subscriptions the push service reports gone |
 | `push_subscribe` / `push_unsubscribe` | JSON endpoints for `profile.js` and `app.js`. Subscribing accepts only HTTPS endpoints on the known push services, because the server later POSTs to that URL and an arbitrary one would let a member aim it at internal hosts |
 | `PrivatePagesMiddleware` | `Cache-Control: no-store, private` on every response to a signed-in member, and on `/accounts/`, `/profile/`, `/push/`, `/admin/`, `/members/` and `/invite/` for everyone. The service worker honours it (§4.3) |
-| `context_processors.member` | The header's name, initials and picture URL, and whether to show the Admin menu (a `<details>` in `base.html` linking every admin page, since an installed app has no address bar; its Database admin item is for superusers only). It reads the picture's timestamp, never its bytes |
+| `context_processors.member` | The header's name, initials and picture URL, and whether the main menu gets its Admin section. The menu is a `<details>` on the brand in `base.html`, with one nested `<details>` per section (Account, Admin), so it opens without JavaScript; `app.js` closes it on an outside tap and keeps one section open at a time. It links every page, since an installed app has no address bar. New features add a section there. The Database admin item is for superusers only. It reads the picture's timestamp, never its bytes |
 
 **Roles and member management.** What admins see and do is described in
 [ADMIN_GUIDE.md](ADMIN_GUIDE.md); this is how it is built.
