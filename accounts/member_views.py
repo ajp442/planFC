@@ -58,7 +58,11 @@ def _rows(users):
 @admin_required
 def member_list(request):
     query = request.GET.get("q", "").strip()
+    # "Admins and roles" in the header menu: the same list, admins only.
+    admins_only = request.GET.get("role") == "admin"
     users = User.objects.order_by("first_name", "last_name", "email")
+    if admins_only:
+        users = users.filter(Q(is_staff=True) | Q(is_superuser=True))
     if query:
         for word in query.split():
             users = users.filter(
@@ -67,6 +71,7 @@ def member_list(request):
     return render(request, "accounts/members/list.html", {
         "rows": _rows(users),
         "query": query,
+        "admins_only": admins_only,
         "total": User.objects.count(),
     })
 

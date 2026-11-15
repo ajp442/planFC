@@ -151,6 +151,21 @@
     });
   });
 
+  // The admin menu opens by itself (it is a <details>); a tap anywhere else,
+  // or Escape, closes it, as people expect of a dropdown.
+  const adminMenu = document.getElementById("admin_menu");
+  if (adminMenu) {
+    document.addEventListener("click", (event) => {
+      if (adminMenu.open && !adminMenu.contains(event.target)) adminMenu.open = false;
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && adminMenu.open) {
+        adminMenu.open = false;
+        adminMenu.querySelector("summary").focus();
+      }
+    });
+  }
+
   async function forgetPushSubscription(form) {
     const registration = await navigator.serviceWorker.getRegistration();
     const subscription = registration && registration.pushManager && (await registration.pushManager.getSubscription());

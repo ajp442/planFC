@@ -125,7 +125,56 @@ class ListTests(AdminTestCase):
         self.assertNotContains(response, "sam@example.com")
 
         response = self.client.get(reverse("member_list"), {"q": "elsewhere"})
-        self.assertContains(response, "1 of 3 match")
+        self.assertContains(response, "1 match")
+
+    def test_the_admins_tab_lists_only_admins(self):
+        User.objects.create_superuser(username="root", email="root@example.com", password=PASSWORD)
+        response = self.client.get(reverse("member_list"), {"role": "admin"})
+        self.assertContains(response, "2 admins")
+        self.assertContains(response, "ada@example.com")
+        self.assertContains(response, "root@example.com")
+        self.assertNotContains(response, "sam@example.com")
+
+        # Searching stays within the tab.
+        response = self.client.get(reverse("member_list"), {"role": "admin", "q": "sam"})
+        self.assertNotContains(response, "sam@example.com")
+
+
+class AdminMenuTests(AdminTestCase):
+    """The header's Admin dropdown: the way to every admin page, which an
+    installed app needs because it has no address bar."""
+
+    def menu(self, response):
+        html = response.content.decode()
+        return html.split('id="admin_menu"')[1].split("</details>")[0] if 'id="admin_menu"' in html else None
+
+    def test_admins_get_a_menu_linking_every_admin_page(self):
+        for page in (reverse("index"), reverse("profile"), reverse("member_list")):
+            menu = self.menu(self.client.get(page))
+            self.assertIsNotNone(menu, page)
+            for url in (
+                reverse("member_list"),
+                f"{reverse('member_list')}?role=admin",
+                reverse("member_add"),
+                reverse("member_activity"),
+            ):
+                self.assertIn(f'href="{url}"', menu, page)
+
+    def test_members_and_visitors_get_no_menu(self):
+        self.client.force_login(self.member)
+        self.assertIsNone(self.menu(self.client.get(reverse("index"))))
+        self.client.logout()
+        self.assertIsNone(self.menu(self.client.get(reverse("index"))))
+
+    def test_only_superusers_are_offered_the_database_admin(self):
+        self.assertNotIn("/admin/", self.menu(self.client.get(reverse("index"))))
+
+        root = make_member(email="root@example.com", first_name="Root")
+        call_command("make_admin", "root@example.com", "--superuser", stdout=StringIO())
+        self.client.force_login(root)
+        self.assertIn('href="/admin/"', self.menu(self.client.get(reverse("index"))))
+        # The app's session is enough: no second sign-in at /admin/.
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
 
 
 class InviteTests(AdminTestCase):
@@ -432,6 +481,14 @@ class MakeAdminCommandTests(TestCase):
 
         entry = AdminAction.objects.get()
         self.assertEqual((entry.action, entry.actor, entry.actor_label), (Action.MADE_ADMIN, None, "Command line"))
+
+    def test_superuser_also_grants_database_access(self):
+        member = make_member()
+        self.assertIn("with database access at /admin/", self.run_command("sam@example.com", "--superuser"))
+        member.refresh_from_db()
+        self.assertTrue(member.is_staff and member.is_superuser)
+        with self.assertRaises(CommandError):
+            self.run_command("sam@example.com", "--remove", "--superuser")
 
     def test_remove_takes_the_role_away(self):
         root = User.objects.create_superuser(username="root", email="root@example.com", password=PASSWORD)
