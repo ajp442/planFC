@@ -1,0 +1,17 @@
+{% comment %}
+A list of AdminAction rows. `show_target` adds whose account each one was
+about, for the page that lists every member's changes together.
+{% endcomment %}
+<ul class="history">
+  {% for entry in history %}
+    <li>
+      <div>
+        <strong>{{ entry.get_action_display }}</strong>{% if show_target %}: {{ entry.target_label }}{% endif %}
+        {% if entry.detail %}<div class="muted">{{ entry.detail }}</div>{% endif %}
+      </div>
+      <div class="muted">{{ entry.created_at|date:"M j, Y, g:i a" }} by {{ entry.actor_label }}</div>
+    </li>
+  {% empty %}
+    <li class="muted">Nothing yet.</li>
+  {% endfor %}
+</ul>

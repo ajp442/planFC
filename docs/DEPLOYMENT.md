@@ -111,7 +111,7 @@ database as connected and the service worker as registered.
 | Stop, keeping the data | `docker compose down` |
 | Wipe the dev database and start fresh | `docker compose down -v` (affects dev only, because of §2) |
 | Django shell or management command | `docker compose exec web python manage.py <command>` |
-| Create an admin login | `docker compose exec web python manage.py createsuperuser` |
+| Make an account an admin ([ADMIN_GUIDE.md](ADMIN_GUIDE.md)) | `docker compose exec web python manage.py make_admin you@example.com` |
 | Unit tests | `docker compose run --rm web python manage.py test` |
 | Browser tests (stack must be up) | `./e2e/run.sh` |
 | Test the production image locally, as CI does | see "Testing the shipped image" below |
@@ -270,8 +270,18 @@ docker compose pull
 docker compose up -d
 docker compose ps                       # all three should be Up, db (healthy)
 curl -fsS http://localhost/healthz      # use https://myplanfc.com/healthz in options B and C
-docker compose exec web python manage.py createsuperuser
 ```
+
+Then make the club's first admin: sign up in the app with your own email
+address, confirm it, and run
+
+```sh
+docker compose exec web python manage.py make_admin you@example.com
+```
+
+Every later admin, and all member management, is done in the app
+([ADMIN_GUIDE.md](ADMIN_GUIDE.md)). `createsuperuser` is only needed if you want
+Django's `/admin/` database tool.
 
 `restart: unless-stopped` and Docker starting at boot bring production back after
 a reboot or power cut. Don't touch it after that.

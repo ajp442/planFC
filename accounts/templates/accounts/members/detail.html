@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block head_title %}{{ row.name }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'member_list' %}">&larr; Members</a></p>
+
+<div class="card">
+  <div class="profile-head">
+    {% include "accounts/avatar.html" with picture_url=row.picture_url initials=row.initials size="large" %}
+    <div>
+      <h1>{{ row.name }}</h1>
+      <p class="muted">{{ member.email }}</p>
+    </div>
+  </div>
+
+  <dl class="facts">
+    <dt>Role</dt>
+    <dd>{% if row.is_admin %}Admin{% else %}Member{% endif %}{% if is_self %} (you){% endif %}</dd>
+    <dt>Status</dt>
+    <dd>{{ row.status_label }}</dd>
+    <dt>Email</dt>
+    <dd>{% if email_confirmed %}Confirmed{% else %}Not confirmed{% endif %}</dd>
+    <dt>Signs in with</dt>
+    <dd>{{ sign_in_methods|join:", "|default:"Nothing yet" }}</dd>
+    <dt>Joined</dt>
+    <dd>{{ member.date_joined|date:"M j, Y" }}</dd>
+    <dt>Last sign-in</dt>
+    <dd>{{ member.last_login|date:"M j, Y"|default:"Never" }}</dd>
+  </dl>
+</div>
+
+{% if row.status == "invited" or row.status == "unconfirmed" %}
+<section class="card">
+  {% if row.status == "invited" %}
+    <h2>Invitation</h2>
+    <p class="muted">They haven't chosen a password yet. Invitation links stop working after a few days.</p>
+    <form method="post" action="{% url 'member_action' member.pk 'resend-invite' %}">
+      {% csrf_token %}
+      <button type="submit">Send the invitation again</button>
+    </form>
+  {% else %}
+    <h2>Email not confirmed</h2>
+    <p class="muted">
+      They signed up but never followed the link in the confirmation email, so
+      they can't sign in. If you're sure the address is theirs, you can confirm it for them.
+    </p>
+    <form method="post" action="{% url 'member_action' member.pk 'confirm-email' %}">
+      {% csrf_token %}
+      <button type="submit" class="secondary">Mark the email as confirmed</button>
+    </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Name</h2>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    <div class="field-row">
+      <p>
+        <label for="{{ form.first_name.id_for_label }}">First name</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
+      </p>
+      <p>
+        <label for="{{ form.last_name.id_for_label }}">Last name</label>
+        {{ form.last_name }}
+        {{ form.last_name.errors }}
+      </p>
+    </div>
+    <button type="submit" class="secondary">Save name</button>
+  </form>
+  {% if row.picture_url %}
+    <form method="post" action="{% url 'member_action' member.pk 'remove-picture' %}" class="follow">
+      {% csrf_token %}
+      <button type="submit" class="secondary">Remove their profile picture</button>
+    </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Role</h2>
+  {% if is_self %}
+    <p class="muted">You're an admin. You can't change your own role; another admin has to.</p>
+  {% elif row.is_admin %}
+    <p class="muted">An admin: can add, change and remove members, and change roles.</p>
+    <a class="button secondary" href="{% url 'member_role' member.pk %}">Remove the admin role</a>
+  {% else %}
+    <p class="muted">A member: can use the app and manage their own account, nothing more.</p>
+    <a class="button secondary" href="{% url 'member_role' member.pk %}">Make an admin</a>
+  {% endif %}
+</section>
+
+{% if not is_self %}
+<section class="card">
+  <h2>Access</h2>
+  {% if member.is_active %}
+    <p class="muted">Deactivating signs them out everywhere and blocks sign-in. Nothing is deleted, and you can undo it.</p>
+    <form method="post" action="{% url 'member_action' member.pk 'deactivate' %}">
+      {% csrf_token %}
+      <button type="submit" class="secondary">Deactivate</button>
+    </form>
+  {% else %}
+    <p class="muted">This account is deactivated: they can't sign in.</p>
+    <form method="post" action="{% url 'member_action' member.pk 'reactivate' %}">
+      {% csrf_token %}
+      <button type="submit">Reactivate</button>
+    </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Changes by admins</h2>
+  {% include "accounts/members/_history.html" with show_target=False %}
+</section>
+
+{% if not is_self %}
+<section class="card danger-zone">
+  <h2>Delete account</h2>
+  <p class="muted">Removes their account, profile and sign-in methods for good. To keep them out but keep the account, deactivate instead.</p>
+  <a class="button danger" href="{% url 'member_delete' member.pk %}">Delete this account</a>
+</section>
+{% endif %}
+{% endblock %}

@@ -31,10 +31,13 @@
     {% if is_dev %}<span class="badge badge-small">Dev</span>{% endif %}
   </a>
   {% if user.is_authenticated %}
-    <a class="me" href="{% url 'profile' %}" aria-label="Your profile">
-      <span class="me-name">{{ member_name }}</span>
-      {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="small" %}
-    </a>
+    <nav class="topnav">
+      {% if is_club_admin %}<a class="nav-link" href="{% url 'member_list' %}">Members</a>{% endif %}
+      <a class="me" href="{% url 'profile' %}" aria-label="Your profile">
+        <span class="me-name">{{ member_name }}</span>
+        {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="small" %}
+      </a>
+    </nav>
   {% else %}
     <a class="signin-link" href="{% url 'account_login' %}">Sign in</a>
   {% endif %}

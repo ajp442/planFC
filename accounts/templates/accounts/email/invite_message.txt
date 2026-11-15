@@ -1,0 +1,12 @@
+{% autoescape off %}Hi {{ member.first_name }},
+
+{{ inviter_name }} added you to planFC, the app our football club uses to plan pickup games.
+
+To finish setting up your account, choose a password here:
+
+{{ invite_url }}
+
+The link works once, for {{ valid_days }} days. If it has expired, ask {{ inviter_name }} to send a new one.
+
+If you weren't expecting this, you can ignore this email: the account can't be used without the link.
+{% endautoescape %}

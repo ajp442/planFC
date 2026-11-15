@@ -71,3 +71,52 @@ class PushSubscription(models.Model):
             if marker in agent:
                 return name
         return "Unknown device"
+
+
+class AdminAction(models.Model):
+    """One thing an admin did to a member's account: who, to whom, what, when.
+
+    Rows are only ever added, never edited (PLAN.md: manual changes carry a
+    timestamp nobody can alter). The labels copy each person's name and email
+    at the time, so the record still reads properly after either account is
+    deleted and its foreign key has gone null.
+    """
+
+    class Action(models.TextChoices):
+        INVITED = "invited", "Added and invited"
+        INVITE_RESENT = "invite_resent", "Invitation sent again"
+        MADE_ADMIN = "made_admin", "Made an admin"
+        REMOVED_ADMIN = "removed_admin", "Admin role removed"
+        DEACTIVATED = "deactivated", "Deactivated"
+        REACTIVATED = "reactivated", "Reactivated"
+        EMAIL_CONFIRMED = "email_confirmed", "Email marked as confirmed"
+        NAME_CHANGED = "name_changed", "Name changed"
+        PICTURE_REMOVED = "picture_removed", "Profile picture removed"
+        DELETED = "deleted", "Account deleted"
+
+    # Null for changes made with `manage.py make_admin`, and after the
+    # admin's own account is deleted.
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="admin_actions_taken",
+    )
+    actor_label = models.CharField(max_length=320)
+    target = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="admin_actions_received",
+    )
+    target_label = models.CharField(max_length=320)
+    action = models.CharField(max_length=32, choices=Action.choices)
+    # Free text for the few actions that need it, e.g. the old name.
+    detail = models.CharField(max_length=320, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return f"{self.actor_label}: {self.get_action_display()}: {self.target_label}"

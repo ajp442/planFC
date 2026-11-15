@@ -9,7 +9,8 @@ production is hosted, and why.
 This repository holds the **Foundation proof of concept** (a Django app behind
 Caddy with Postgres, installable as a PWA, running under Docker Compose) and the
 **Login system**: accounts with email, Google and Apple sign-in, profiles, and
-push notifications. See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
+push notifications. See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md). Admins manage
+members and roles in the app itself; see [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md).
 
 ## Prerequisites
 
@@ -139,5 +140,7 @@ publishes the image only if they pass on both.
   sign in. Without an email provider configured, the confirmation link is in
   `docker compose logs web`. Setting up email, Google, Apple and push
   notifications is in [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
-- **An admin account** for `/admin/`:
-  `docker compose run --rm web python manage.py createsuperuser`.
+- **The first admin.** Admins add and manage members inside the app, on its
+  Members page, but someone has to be the first. Sign up, then run
+  `docker compose exec web python manage.py make_admin you@example.com`.
+  [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) covers everything after that.

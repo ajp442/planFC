@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block head_title %}Set up your account{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Welcome, {{ invited_name }}</h1>
+  <p class="muted">Choose a password to finish setting up your planFC account. You'll sign in with <strong>{{ invited_email }}</strong>.</p>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <p>
+      <label for="{{ form.new_password1.id_for_label }}">Password</label>
+      {{ form.new_password1 }}
+      {{ form.new_password1.errors }}
+    </p>
+    {{ form.new_password1.help_text }}
+    <p>
+      <label for="{{ form.new_password2.id_for_label }}">Password (again)</label>
+      {{ form.new_password2 }}
+      {{ form.new_password2.errors }}
+    </p>
+    <button type="submit">Set password and sign in</button>
+  </form>
+</div>
+{% endblock %}

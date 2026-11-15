@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from . import push
+from . import members, push
 from .forms import ProfileForm
 from .models import ProfilePicture, PushSubscription
 
@@ -71,6 +71,13 @@ def profile_picture(request, user_id):
 # phone someone else has picked up.
 @reauthentication_required
 def delete_account(request):
+    # Someone has to be left who can manage members from inside the app.
+    if members.is_only_admin(request.user):
+        messages.error(
+            request,
+            "You are the club's only admin. Make another member an admin before deleting your account.",
+        )
+        return redirect("profile")
     if request.method == "POST":
         user = request.user
         # Sign out first: once the row is gone, the session would point at
