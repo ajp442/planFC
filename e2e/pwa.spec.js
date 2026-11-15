@@ -99,3 +99,21 @@ test("iOS gets the Add to Home Screen hint, Android does not", async ({ page }, 
     await expect(hint).toBeHidden();
   }
 });
+
+test("install button stays hidden until the browser offers an install", async ({ page }) => {
+  await page.goto("/");
+  // No beforeinstallprompt in an emulated browser, so the button must not be
+  // there to be tapped: it would do nothing.
+  await expect(page.locator("#install_button")).toBeHidden();
+});
+
+test("Android gets the browser-menu hint when no install prompt arrives", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const hint = page.locator("#menu_hint");
+  if (testInfo.project.name === "ios") {
+    await page.waitForTimeout(3500);
+    await expect(hint).toBeHidden();
+  } else {
+    await expect(hint).toBeVisible();
+  }
+});
