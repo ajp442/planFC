@@ -39,6 +39,14 @@
   </form>
 </div>
 
+{% if is_club_admin %}
+<section class="card">
+  <h2>Club admin</h2>
+  <p class="muted">You're an admin: you can add members, change their roles and manage their accounts.</p>
+  <a class="button secondary" href="{% url 'member_list' %}">Manage members</a>
+</section>
+{% endif %}
+
 <section class="card" id="notifications">
   <h2>Notifications</h2>
   {% if push_enabled %}

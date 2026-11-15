@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block head_title %}Delete account{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Delete {{ target_name }}'s account?</h1>
+  <p>This permanently removes:</p>
+  <ul>
+    <li>their name, email address ({{ member.email }}) and profile picture,</li>
+    <li>their password and any Google or Apple sign-in,</li>
+    <li>notifications on all their devices.</li>
+  </ul>
+  <p>It can't be undone. To stop them signing in without losing anything, deactivate the account instead.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="danger">Delete {{ target_name }}'s account</button>
+  </form>
+  <p><a href="{% url 'member_detail' member.pk %}">Keep the account</a></p>
+</div>
+{% endblock %}

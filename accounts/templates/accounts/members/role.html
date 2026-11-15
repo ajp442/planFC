@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block head_title %}Change role{% endblock %}
+{% block content %}
+<div class="card">
+  {% if currently_admin %}
+    <h1>Remove {{ target_name }}'s admin role?</h1>
+    <p>They stay a member and keep their account, but can no longer:</p>
+  {% else %}
+    <h1>Make {{ target_name }} an admin?</h1>
+    <p>Admins can do everything a member can, and also:</p>
+  {% endif %}
+  <ul>
+    <li>add members and send invitations,</li>
+    <li>change names, deactivate and delete other members' accounts,</li>
+    <li>make other members admins, or remove their admin role{% if not currently_admin %}, including yours{% endif %}.</li>
+  </ul>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit">{% if currently_admin %}Remove the admin role{% else %}Make {{ target_name }} an admin{% endif %}</button>
+  </form>
+  <p><a href="{% url 'member_detail' member.pk %}">Cancel</a></p>
+</div>
+{% endblock %}

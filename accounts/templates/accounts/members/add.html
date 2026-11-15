@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block head_title %}Add a member{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Add a member</h1>
+  <p class="muted">
+    They get an email with a link to choose a password. The link works for
+    {{ valid_days }} days, and you can send a new one at any time.
+  </p>
+
+  <form method="post" class="stack">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="field-row">
+      <p>
+        <label for="{{ form.first_name.id_for_label }}">First name</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
+      </p>
+      <p>
+        <label for="{{ form.last_name.id_for_label }}">Last name</label>
+        {{ form.last_name }}
+        {{ form.last_name.errors }}
+      </p>
+    </div>
+    <p>
+      <label for="{{ form.email.id_for_label }}">Email</label>
+      {{ form.email }}
+      {{ form.email.errors }}
+    </p>
+    <p class="checkbox">{{ form.make_admin }} <label for="{{ form.make_admin.id_for_label }}">{{ form.make_admin.label }}</label></p>
+    <button type="submit">Add and send the invitation</button>
+  </form>
+  <p><a href="{% url 'member_list' %}">Cancel</a></p>
+</div>
+{% endblock %}

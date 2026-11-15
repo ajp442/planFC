@@ -18,7 +18,7 @@ emails printed to `docker compose logs web`.
 | Create an account | `/accounts/signup/`: first and last name, email, password twice |
 | Email, Google, Apple | Email always; Google and Apple once their credentials are set |
 | A valid email address | Mandatory confirmation: no sign-in until the emailed link is followed. Google and Apple supply an address they have already confirmed |
-| Delete the account | Profile → Delete my account, after re-entering the password |
+| Delete the account | Profile → Delete my account, after re-entering the password (or an emailed code, for accounts without one) |
 | Name and profile picture | `/profile/` |
 | Not signing in every time | Sessions last 180 days from the last visit |
 | Push notifications in the PWA | Profile → Notifications, per device |
@@ -49,6 +49,11 @@ Until then, the link can be fished out of the log:
 ```
 docker compose logs web | grep confirm-email
 ```
+
+An admin can also confirm a member's address for them, or add a member by
+invitation, from the Members page; see [ADMIN_GUIDE.md](ADMIN_GUIDE.md).
+Invitations are emails too, so without a provider they land in the same log
+(`grep /invite/`).
 
 ## HTTPS
 
@@ -170,10 +175,11 @@ replaced by `/offline/`.
   (blank the name and email, delete the password and sign-in links) instead of
   deleting the row. Payment models should use `on_delete=PROTECT` toward the
   user, so a cascade can't quietly remove financial history.
-- **Members who only use Google or Apple aren't asked to re-authenticate before
-  deleting.** allauth doesn't yet support re-authenticating through a provider,
-  so it skips the check for accounts without a password. The confirmation page
-  is still there.
+- **Members who only use Google or Apple re-authenticate with an emailed
+  code.** allauth can't re-authenticate through a provider, so before deleting
+  their account (or, for an admin, changing a role or deleting another
+  member's account) it emails them a one-time code instead of asking for a
+  password. That needs working email like everything else here.
 - **Rate limits** on sign-in, sign-up and password reset are allauth's
   defaults, kept in the database cache so all gunicorn workers share them.
 - **Google/Apple inside the installed iOS app.** The provider's page opens in an

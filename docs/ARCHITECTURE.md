@@ -113,15 +113,18 @@ there speculatively.
 │       └── pwa/
 │           ├── manifest.webmanifest   rendered as a Django template
 │           └── sw.js                  rendered as a Django template
-├── accounts/               Profiles, pictures, push, account deletion (§3.6)
-│   ├── models.py           ProfilePicture, PushSubscription
+├── accounts/               Profiles, pictures, push, roles, member management (§3.6)
+│   ├── models.py           ProfilePicture, PushSubscription, AdminAction
 │   ├── views.py, urls.py   /profile/..., /push/...
-│   ├── forms.py            sign-up name fields, profile form
+│   ├── members.py          who is an admin, account status, invitations, the record
+│   ├── member_views.py     /members/..., /invite/...
+│   ├── forms.py            sign-up name fields, profile form, add-member form
 │   ├── pictures.py         upload → 256 px JPEG
 │   ├── push.py             send_to_user()
 │   ├── middleware.py       no-store on private pages
-│   ├── management/commands/generate_vapid_keys.py
-│   └── templates/          profile pages, plus overrides of allauth's
+│   ├── tests.py, tests_members.py
+│   ├── management/commands/   generate_vapid_keys, make_admin
+│   └── templates/          profile and members pages, plus overrides of allauth's
 ├── static/                 Authored static assets (source for collectstatic)
 │   ├── css/app.css
 │   ├── js/app.js           SW registration, install button, status, sign-out
@@ -199,10 +202,12 @@ Other choices in this file:
 | `/healthz` | `core.views.healthz` | JSON liveness plus a DB round-trip |
 | `/sw.js` | `TemplateView` → `pwa/sw.js` | `application/javascript` |
 | `/manifest.webmanifest` | `TemplateView` → `pwa/manifest.webmanifest` | `application/manifest+json` |
-| `/admin/` | Django admin | No superuser exists until you create one |
+| `/admin/` | Django admin | The operator's database tool, not how admins manage members (§3.6). No superuser exists until you create one |
 | `/accounts/...` | allauth | Sign in/up/out, email confirmation, password reset and change, email addresses, Google, Apple, re-authentication |
 | `/profile/`, `/profile/picture/<id>/`, `/profile/delete/` | `accounts.views` | §3.6 |
 | `/push/subscribe/`, `/push/unsubscribe/`, `/push/test/` | `accounts.views` | JSON from `profile.js` and `app.js` |
+| `/members/`, `/members/add/`, `/members/activity/`, `/members/<id>/...` | `accounts.member_views` | Admins only: 403 for other members (§3.6) |
+| `/invite/<uid>/<token>/` | `accounts.member_views.accept_invite` | Public; the signed link is the credential |
 | `/offline/` | `TemplateView` → `core/offline.html` | Pre-cached by the service worker |
 | `/static/...` | WhiteNoise middleware | Not in `urls.py` at all |
 
@@ -311,6 +316,7 @@ Apple are configuration in `settings.py`, not our code. The policy:
   provider. Their addresses count as confirmed, and they join an existing
   account with the same address (`SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT`);
 - `/admin/` keeps Django's username login, so an existing superuser still works.
+  Nothing an admin does day to day needs it; see "Roles and member management" below.
 
 allauth's pages extend `allauth/layouts/base.html`. `accounts` overrides that one
 template to extend the site's `base.html`, whose blocks have the same names, so
@@ -326,8 +332,48 @@ templates (button, provider) are overridden to add CSS classes.
 | `delete_account` view | Behind allauth's `@reauthentication_required`: the password must have been re-entered in the last 5 minutes. Cascades to everything the member owns |
 | `PushSubscription` + `push.py` | One row per device. `send_to_user()` encrypts and signs each message (pywebpush, VAPID) and deletes subscriptions the push service reports gone |
 | `push_subscribe` / `push_unsubscribe` | JSON endpoints for `profile.js` and `app.js`. Subscribing accepts only HTTPS endpoints on the known push services, because the server later POSTs to that URL and an arbitrary one would let a member aim it at internal hosts |
-| `PrivatePagesMiddleware` | `Cache-Control: no-store, private` on every response to a signed-in member, and on `/accounts/`, `/profile/`, `/push/` and `/admin/` for everyone. The service worker honours it (§4.3) |
-| `context_processors.member` | The header's name, initials and picture URL. It reads the picture's timestamp, never its bytes |
+| `PrivatePagesMiddleware` | `Cache-Control: no-store, private` on every response to a signed-in member, and on `/accounts/`, `/profile/`, `/push/`, `/admin/`, `/members/` and `/invite/` for everyone. The service worker honours it (§4.3) |
+| `context_processors.member` | The header's name, initials and picture URL, and whether to show the Members link. It reads the picture's timestamp, never its bytes |
+
+**Roles and member management.** What admins see and do is described in
+[ADMIN_GUIDE.md](ADMIN_GUIDE.md); this is how it is built.
+
+- **Two roles, on Django's own flags.** A member is any `User`; an admin is an
+  active one with `is_staff` (or `is_superuser`, so a `createsuperuser` account
+  counts). `members.is_admin()` is the one definition, and `@admin_required`
+  wraps every Members view: signed-out visitors go to sign-in, other members get
+  `403.html`. No custom user model, group or permission table; if a third role
+  is ever needed, this is the function to change. Later apps (games, ledger)
+  should use the same decorator rather than their own test.
+- **The first admin comes from the command line** (`manage.py make_admin
+  <email>`), since only an admin can make another in the app. The same command
+  is the way back in if none is left.
+- **Invitations.** `create_invited_member()` makes a `User` with an unusable
+  password and an unverified `EmailAddress`, and emails a link to
+  `/invite/<uid>/<token>/`. The token is Django's password-reset signature
+  under a different salt (`InviteTokenGenerator`): it covers the password hash
+  and last sign-in, so it dies when used, and expires after
+  `PASSWORD_RESET_TIMEOUT` (3 days). `accept_invite` sets the password, marks
+  the address verified (following the link is the same proof a confirmation
+  email gives) and signs the member in. allauth's own password-reset flow was
+  not reused because it neither verifies the address nor signs in, which would
+  mean a second email before the first sign-in.
+- **Status is derived, not stored**: deactivated (`is_active` off), invited (no
+  usable password and never signed in), unconfirmed (no verified
+  `EmailAddress`), otherwise active. Deactivating needs no session cleanup:
+  Django's auth backends refuse to load an inactive user, so the next request
+  on any device is anonymous.
+- **Safeguards.** Changing a role and deleting an account sit behind a
+  confirmation page and `@reauthentication_required`, like deleting your own
+  account. An admin can't change their own role or deactivate themselves, which
+  also means the app can never remove its last admin; `delete_account` refuses
+  the only admin for the same reason. The other actions are reversible, so they
+  are single POSTs.
+- **`AdminAction`** is an append-only record of each change: actor, target,
+  action, time. Both foreign keys are `SET_NULL` with a text label copied
+  beside them, so the record survives either account being deleted. It is
+  written by `members.record()`, shown on each member's page and at
+  `/members/activity/`, and read-only in `/admin/`.
 
 **Push, end to end:** `profile.js` asks permission (from the tap itself, which
 iOS requires), calls `pushManager.subscribe()` with the VAPID public key, and

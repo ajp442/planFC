@@ -11,12 +11,12 @@ class PrivatePagesMiddleware:
     so do browsers' own HTTP caches.
 
     Account pages are marked too even when nobody is signed in, since their
-    URLs carry one-time keys (email confirmation, password reset).
+    URLs carry one-time keys (email confirmation, password reset, invitations).
 
     A view that sets its own Cache-Control (a profile picture, say) keeps it.
     """
 
-    PRIVATE_PREFIXES = ("/accounts/", "/profile/", "/push/", "/admin/")
+    PRIVATE_PREFIXES = ("/accounts/", "/profile/", "/push/", "/admin/", "/members/", "/invite/")
 
     def __init__(self, get_response):
         self.get_response = get_response

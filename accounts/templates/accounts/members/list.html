@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block head_title %}Members{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-head">
+    <h1>Members</h1>
+    <a class="button small" href="{% url 'member_add' %}">Add a member</a>
+  </div>
+
+  <form method="get" class="search" role="search">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search by name or email" aria-label="Search members" autocomplete="off">
+    <button type="submit" class="secondary">Search</button>
+  </form>
+
+  {% if query %}
+    <p class="muted">{{ rows|length }} of {{ total }} match “{{ query }}”. <a href="{% url 'member_list' %}">Show everyone</a></p>
+  {% else %}
+    <p class="muted">{{ total }} account{{ total|pluralize }}</p>
+  {% endif %}
+
+  <ul class="member-list">
+    {% for row in rows %}
+      <li>
+        <a href="{% url 'member_detail' row.user.pk %}">
+          {% include "accounts/avatar.html" with picture_url=row.picture_url initials=row.initials size="small" %}
+          <div class="member-text">
+            <div class="member-name">{{ row.name }}</div>
+            <div class="muted member-email">{{ row.user.email }}</div>
+          </div>
+          <div class="pills">
+            {% if row.is_admin %}<div class="pill pill-admin">Admin</div>{% endif %}
+            {% if row.status != "active" %}<div class="pill pill-{{ row.status }}">{{ row.status_label }}</div>{% endif %}
+          </div>
+        </a>
+      </li>
+    {% empty %}
+      <li class="muted">Nobody matches.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<p class="center"><a href="{% url 'member_activity' %}">What admins have changed</a></p>
+{% endblock %}

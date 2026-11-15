@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block head_title %}Admins only{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Admins only</h1>
+  <p>This page is for the club's admins. If you should be one, ask an admin to change your role.</p>
+  <p><a href="{% url 'index' %}">Back to the home page</a></p>
+</div>
+{% endblock %}

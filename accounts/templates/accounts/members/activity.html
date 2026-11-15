@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block head_title %}Admin changes{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'member_list' %}">&larr; Members</a></p>
+<div class="card">
+  <h1>What admins have changed</h1>
+  <p class="muted">The 200 most recent changes to members' accounts, newest first. Entries can't be edited or removed.</p>
+  {% include "accounts/members/_history.html" with show_target=True %}
+</div>
+{% endblock %}

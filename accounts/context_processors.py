@@ -12,10 +12,15 @@ def member(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return {}
+    # Imported here because members.py imports this module's helpers.
+    from .members import is_admin
+
     updated_at = (
         ProfilePicture.objects.filter(user=user).values_list("updated_at", flat=True).first()
     )
     return {
+        # Shows the Members link in the header.
+        "is_club_admin": is_admin(user),
         "member_name": display_name(user),
         "member_initials": initials(user),
         "member_picture_url": picture_url(user.pk, updated_at) if updated_at else None,

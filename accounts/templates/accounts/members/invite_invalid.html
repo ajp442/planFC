@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block head_title %}Invitation link{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>This link no longer works</h1>
+  <p>Invitation links work once, and only for a few days.</p>
+  <ul>
+    <li>If you already chose a password, <a href="{% url 'account_login' %}">sign in</a>.</li>
+    <li>Otherwise, ask a club admin to send you a new invitation.</li>
+  </ul>
+</div>
+{% endblock %}

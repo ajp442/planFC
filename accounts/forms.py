@@ -52,3 +52,27 @@ class ProfileForm(NameFields):
             raise ValidationError("That file is over 10 MB. Use a smaller photo.")
         upload.seek(0)
         return make_profile_jpeg(upload)
+
+
+class MemberNameForm(NameFields):
+    """An admin correcting a member's name, e.g. a nickname on the roster."""
+
+
+class AddMemberForm(NameFields):
+    field_order = ["first_name", "last_name", "email", "make_admin"]
+
+    email = forms.EmailField(
+        max_length=254,
+        widget=forms.EmailInput(attrs={"autocomplete": "off"}),
+    )
+    make_admin = forms.BooleanField(required=False, label="Make them an admin")
+
+    def clean_email(self):
+        # Imported here: members.py needs the models, which need the apps loaded.
+        from .members import email_in_use
+
+        # Lower case, as allauth stores every address.
+        email = self.cleaned_data["email"].lower()
+        if email_in_use(email):
+            raise ValidationError("A member with that email address already exists.")
+        return email

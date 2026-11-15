@@ -72,7 +72,10 @@ a { color: var(--pitch); }
   color: var(--muted);
 }
 
-.signin-link { font-weight: 600; text-decoration: none; }
+.signin-link, .nav-link { font-weight: 600; text-decoration: none; }
+
+.topnav { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.nav-link { flex: none; }
 
 /* --- Page ------------------------------------------------------------------ */
 
@@ -248,6 +251,59 @@ hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
 .links li, .devices li { margin: 6px 0; }
 
 .danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
+
+/* --- Members (admins) ------------------------------------------------------ */
+
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.card-head h1 { margin: 0; }
+.button.small { width: auto; padding: 8px 14px; font-size: 0.9375rem; }
+
+.back { margin: 0 0 12px; }
+.back a { text-decoration: none; font-weight: 600; }
+
+.search { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 12px; }
+.search button { width: auto; padding: 12px 16px; }
+
+.member-list, .history { margin: 0; padding: 0; list-style: none; }
+.member-list li, .history li { border-top: 1px solid var(--border); }
+.history li { padding: 10px 0; font-size: 0.9375rem; }
+.member-list li.muted { padding: 12px 0; }
+
+.member-list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.member-text { flex: 1; min-width: 0; }
+.member-name { font-weight: 600; }
+.member-name, .member-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-email { font-size: 0.875rem; }
+
+.pills { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.pill {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill-admin { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+.pill-deactivated { border-color: var(--bad); color: var(--bad); }
+
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 0.9375rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* A second form under the first in one card. */
+form.follow { margin-top: 10px; }
 
 /* --- Sign in with ---------------------------------------------------------- */
 
