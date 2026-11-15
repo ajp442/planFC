@@ -34,7 +34,8 @@ test.describe("members area", () => {
     // A fresh address per run and device, so reruns never collide.
     const email = `e2e-invited-${testInfo.project.name}-${Date.now()}@example.com`;
     await signIn(page, ADMIN_EMAIL);
-    // The Admin dropdown in the header is the only way in for an installed app.
+    // The Admin section of the main menu is the only way in for an installed app.
+    await page.locator("#main_menu > summary").click();
     await page.locator("#admin_menu summary").click();
     await page.locator("#admin_menu").getByRole("link", { name: "Members", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();

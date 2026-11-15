@@ -25,32 +25,55 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="{% url 'index' %}">
-    <img src="{% static icon_dir|add:'icon_192.png' %}" alt="" width="28" height="28">
-    <span>planFC</span>
-    {% if is_dev %}<span class="badge badge-small">Dev</span>{% endif %}
-  </a>
-  {% if user.is_authenticated %}
-    <nav class="topnav">
-      {% if is_club_admin %}
-        {# A <details>, so it opens without JavaScript; app.js only closes it again. #}
-        <details class="menu" id="admin_menu">
-          <summary>Admin</summary>
-          <div class="menu-items">
-            <a href="{% url 'member_list' %}">Members</a>
-            <a href="{% url 'member_list' %}?role=admin">Admins and roles</a>
-            <a href="{% url 'member_add' %}">Add a member</a>
-            <a href="{% url 'member_activity' %}">Admin changes</a>
-            {# Django's own admin shows nothing to an admin who isn't a superuser. #}
-            {% if user.is_superuser %}<a href="{% url 'admin:index' %}">Database admin</a>{% endif %}
+  {% comment %}
+  The main menu. A <details>, so it opens without JavaScript; app.js only
+  closes it again. Each section is a nested <details>: add new ones (games,
+  payments) beside Account and Admin.
+  {% endcomment %}
+  <details class="menu" id="main_menu">
+    <summary class="brand" aria-label="Menu">
+      <span class="bars" aria-hidden="true"></span>
+      <img src="{% static icon_dir|add:'icon_192.png' %}" alt="" width="28" height="28">
+      <span>planFC</span>
+      {% if is_dev %}<span class="badge badge-small">Dev</span>{% endif %}
+    </summary>
+    <nav class="menu-items" aria-label="Main">
+      <a href="{% url 'index' %}">Home</a>
+      {% if user.is_authenticated %}
+        <details class="submenu" id="account_menu">
+          <summary>Account</summary>
+          <div class="submenu-items">
+            <a href="{% url 'profile' %}">Profile</a>
+            <a href="{% url 'profile' %}#notifications">Notifications</a>
+            <a href="{% url 'account_email' %}">Email address</a>
+            <a href="{% url 'account_change_password' %}">Password</a>
+            <a href="{% url 'account_logout' %}">Sign out</a>
           </div>
         </details>
+        {% if is_club_admin %}
+          <details class="submenu" id="admin_menu">
+            <summary>Admin</summary>
+            <div class="submenu-items">
+              <a href="{% url 'member_list' %}">Members</a>
+              <a href="{% url 'member_list' %}?role=admin">Admins and roles</a>
+              <a href="{% url 'member_add' %}">Add a member</a>
+              <a href="{% url 'member_activity' %}">Admin changes</a>
+              {# Django's own admin shows nothing to an admin who isn't a superuser. #}
+              {% if user.is_superuser %}<a href="{% url 'admin:index' %}">Database admin</a>{% endif %}
+            </div>
+          </details>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'account_login' %}">Sign in</a>
+        <a href="{% url 'account_signup' %}">Create an account</a>
       {% endif %}
-      <a class="me" href="{% url 'profile' %}" aria-label="Your profile">
-        <span class="me-name">{{ member_name }}</span>
-        {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="small" %}
-      </a>
     </nav>
+  </details>
+  {% if user.is_authenticated %}
+    <a class="me" href="{% url 'profile' %}" aria-label="Your profile">
+      <span class="me-name">{{ member_name }}</span>
+      {% include "accounts/avatar.html" with picture_url=member_picture_url initials=member_initials size="small" %}
+    </a>
   {% else %}
     <a class="signin-link" href="{% url 'account_login' %}">Sign in</a>
   {% endif %}

@@ -66,7 +66,8 @@ first is made once, from a terminal on the server:
    ```
 
    It answers `Your Name <you@example.com> is now an admin.`
-3. Reload the app. An **Admin** menu appears in the header.
+3. Reload the app and open the menu (the three bars beside **planFC**, top
+   left). It now has an **Admin** section.
 
 Whoever runs the server will probably want database access too. Add
 `--superuser` to the command for that; see [Django's `/admin/`](#djangos-admin).
@@ -80,8 +81,9 @@ lives in `/srv/planfc` ([DEPLOYMENT.md](DEPLOYMENT.md)).
 
 ## The Members page
 
-Admins see an **Admin** menu in the header on every page. It is how you reach
-everything in this guide, including in the installed app, which has no address
+The app's menu opens from the three bars beside **planFC** in the top left
+corner of every page. For admins it has an **Admin** section; tap it to open
+it. It is how you reach everything in this guide, including in the installed app, which has no address
 bar to type into:
 
 | Menu item | Opens |
@@ -92,7 +94,7 @@ bar to type into:
 | **Admin changes** | [The record of changes](#the-record-of-changes) |
 | **Database admin** | [Django's `/admin/`](#djangos-admin). Only shown to the few admins who have database access |
 
-Members see no Admin menu, and get an "Admins only" page if they type one of
+Members have no Admin section in their menu, and get an "Admins only" page if they type one of
 these addresses in. Admins also have a **Manage members** button on their
 profile.
 
@@ -176,7 +178,7 @@ another afterwards.
    one-time code to enter instead.
 3. Read what the role allows and confirm.
 
-It takes effect at once: the **Admin** menu appears in their header on their next page.
+It takes effect at once: the **Admin** section appears in their menu on their next page.
 
 **Remove the admin role** works the same way, on an admin's page. They stay a
 member and keep their account.
@@ -285,7 +287,7 @@ granted in the app, only from the server:
 docker compose exec web python manage.py make_admin you@example.com --superuser
 ```
 
-Such an admin gets a **Database admin** item in their Admin menu. It opens
+Such an admin gets a **Database admin** item in the Admin section of their menu. It opens
 `/admin/` using the sign-in they already have, so there is no second login.
 
 How the two fit together:
@@ -307,7 +309,7 @@ How the two fit together:
 |---|---|
 | Make the very first admin | On the server: `docker compose exec web python manage.py make_admin you@example.com` |
 | Give an admin database access (`/admin/`) | On the server: the same command with `--superuser` |
-| Find any admin page | **Admin** menu in the header |
+| Find any admin page | Menu (☰, top left) → **Admin** |
 | See who the admins are | Admin → Admins and roles |
 | Add someone | Admin → Add a member |
 | Resend a lost or expired invitation | Their page → Send the invitation again |

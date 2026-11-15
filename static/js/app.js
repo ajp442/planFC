@@ -151,18 +151,29 @@
     });
   });
 
-  // The admin menu opens by itself (it is a <details>); a tap anywhere else,
+  // The main menu opens by itself (it is a <details>); a tap anywhere else,
   // or Escape, closes it, as people expect of a dropdown.
-  const adminMenu = document.getElementById("admin_menu");
-  if (adminMenu) {
+  const mainMenu = document.getElementById("main_menu");
+  if (mainMenu) {
     document.addEventListener("click", (event) => {
-      if (adminMenu.open && !adminMenu.contains(event.target)) adminMenu.open = false;
+      if (mainMenu.open && !mainMenu.contains(event.target)) mainMenu.open = false;
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && adminMenu.open) {
-        adminMenu.open = false;
-        adminMenu.querySelector("summary").focus();
+      if (event.key === "Escape" && mainMenu.open) {
+        mainMenu.open = false;
+        mainMenu.querySelector("summary").focus();
       }
+    });
+    // Sections work as an accordion: opening one closes the others, so the
+    // menu never grows past a phone's screen.
+    const sections = mainMenu.querySelectorAll("details.submenu");
+    sections.forEach((section) => {
+      section.addEventListener("toggle", () => {
+        if (!section.open) return;
+        sections.forEach((other) => {
+          if (other !== section) other.open = false;
+        });
+      });
     });
   }
 
