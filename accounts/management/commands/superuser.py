@@ -1,4 +1,5 @@
-"""The superuser role: the only accounts that can open Django's /admin/.
+"""The superuser role: the only accounts that can open Django's /admin/,
+and only with two-factor authentication (admin_site.py).
 
 Set only here, on the server's command line. Nothing in the app, /admin/
 included, can grant or remove it, and admins can't change a superuser's
@@ -8,6 +9,8 @@ role, deactivate them or delete them (members.is_protected).
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
+
+from allauth.mfa.models import Authenticator
 
 from accounts import members
 from accounts.models import AdminAction
@@ -28,17 +31,25 @@ class Command(BaseCommand):
                  "`make_admin --remove` afterwards to take that away too.",
         )
         parser.add_argument(
+            "--reset-2fa", action="store_true", dest="reset_2fa",
+            help="Delete their authenticator app and recovery codes, for a lost phone. "
+                 "They set up a new one the next time they open Database admin.",
+        )
+        parser.add_argument(
             "--list", action="store_true", dest="list_only", help="List the superusers and change nothing.",
         )
 
-    def handle(self, *args, email, remove, list_only, **options):
+    def handle(self, *args, email, remove, reset_2fa, list_only, **options):
         User = get_user_model()
         if list_only:
-            if email or remove:
-                raise CommandError("--list takes no email address and no --remove.")
+            if email or remove or reset_2fa:
+                raise CommandError("--list takes no email address and no other option.")
             superusers = User.objects.filter(is_superuser=True).order_by("email")
             for user in superusers:
-                self.stdout.write(members.label(user) + ("" if user.is_active else " (deactivated)"))
+                notes = [] if user.is_active else ["deactivated"]
+                if not Authenticator.objects.filter(user=user, type=Authenticator.Type.TOTP).exists():
+                    notes.append("no two-factor authentication yet")
+                self.stdout.write(members.label(user) + (f" ({', '.join(notes)})" if notes else ""))
             if not superusers:
                 self.stdout.write("There are no superusers.")
             return
@@ -55,6 +66,21 @@ class Command(BaseCommand):
         if len(users) > 1:
             raise CommandError(f"{len(users)} accounts use {email}; fix that in /admin/ first.")
         user = users[0]
+
+        if reset_2fa:
+            if remove:
+                raise CommandError("Use --reset-2fa on its own.")
+            deleted, _ = Authenticator.objects.filter(user=user).delete()
+            if not deleted:
+                self.stdout.write(f"{members.label(user)} has no two-factor authentication; nothing changed.")
+                return
+            members.record(None, user, AdminAction.Action.TWO_FACTOR_RESET)
+            self.stdout.write(
+                f"{members.label(user)}'s authenticator app and recovery codes are deleted. "
+                "They can sign in with their password alone, and set up a new app the "
+                "next time they open Database admin."
+            )
+            return
 
         if remove:
             if not user.is_superuser:
@@ -78,6 +104,9 @@ class Command(BaseCommand):
         user.is_staff = True
         user.save(update_fields=["is_superuser", "is_staff"])
         members.record(None, user, AdminAction.Action.MADE_SUPERUSER)
-        self.stdout.write(f"{members.label(user)} is now a superuser, with database access at /admin/.")
+        self.stdout.write(
+            f"{members.label(user)} is now a superuser. The first time they open Database admin, "
+            "they will be asked to set up an authenticator app."
+        )
         if not user.is_active:
             self.stderr.write("Their account is deactivated, so they can't sign in until it is reactivated.")

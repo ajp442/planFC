@@ -6,6 +6,15 @@ from io import StringIO
 from unittest import mock
 
 from allauth.account.models import EmailAddress
+from allauth.mfa.models import Authenticator
+from allauth.mfa.totp.internal.auth import (
+    TOTP,
+    format_hotp_value,
+    generate_totp_secret,
+    hotp_value,
+    yield_hotp_counters_from_time,
+)
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.management import call_command
@@ -204,7 +213,9 @@ class AdminMenuTests(AdminTestCase):
         call_command("superuser", "root@example.com", stdout=StringIO())
         self.client.force_login(root)
         self.assertIn('href="/admin/"', self.menu(self.client.get(reverse("index"))))
-        # The app's session is enough: no second sign-in at /admin/.
+        # The app's session and a 2FA code: no second sign-in at /admin/.
+        code = give_authenticator_app(root)
+        self.client.post(f"{reverse('mfa_reauthenticate')}?next=/admin/", {"code": code()})
         self.assertEqual(self.client.get("/admin/").status_code, 200)
 
 
@@ -593,33 +604,105 @@ class SuperuserCommandTests(TestCase):
             self.run_command("nobody@example.com")
 
 
-class DatabaseAdminTests(TestCase):
-    """Django's /admin/: superusers only, and no way to change the superuser
-    role from inside it."""
+def give_authenticator_app(user):
+    """Set up 2FA for `user` as if they had scanned the QR code; returns a
+    function that reads the app's current code."""
+    secret = generate_totp_secret()
+    TOTP.activate(user, secret)
 
-    def test_an_admin_is_shown_the_login_page(self):
+    def current_code():
+        # Each code works once, so clear the record of used ones between calls.
+        cache.clear()
+        return format_hotp_value(hotp_value(secret, next(yield_hotp_counters_from_time())))
+
+    return current_code
+
+
+class DatabaseAdminTests(TestCase):
+    """Django's /admin/: superusers who entered a 2FA code recently, and no
+    way to change the superuser role from inside it."""
+
+    def enter_code(self, code, next_url="/admin/"):
+        return self.client.post(f"{reverse('mfa_reauthenticate')}?next={next_url}", {"code": code})
+
+    def test_signed_out_visitors_go_to_the_apps_sign_in(self):
+        response = self.client.get(reverse("admin:index"), follow=True)
+        self.assertRedirects(response, f"{reverse('account_login')}?next=%2Fadmin%2F")
+
+    def test_an_admin_is_turned_away(self):
         self.client.force_login(make_admin())
-        response = self.client.get(reverse("admin:index"))
-        self.assertRedirects(response, f"{reverse('admin:login')}?next={reverse('admin:index')}",
-                             fetch_redirect_response=False)
+        response = self.client.get(reverse("admin:index"), follow=True)
+        self.assertContains(response, "Superusers only", status_code=403)
         self.assertNotContains(self.client.get(reverse("member_list")), "Database admin")
 
-    def test_an_admin_cannot_sign_in_there_either(self):
-        admin = make_admin()
-        self.client.post(reverse("admin:login"), {"username": admin.username, "password": PASSWORD})
-        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 302)
+    def test_django_login_form_is_never_shown(self):
+        root = make_superuser()
+        give_authenticator_app(root)
+        response = self.client.post(reverse("admin:login"), {"username": root.username, "password": PASSWORD})
+        self.assertRedirects(response, f"{reverse('account_login')}?next=%2Fadmin%2F", fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
 
-    def test_a_superuser_gets_in(self):
+    def test_a_superuser_without_an_authenticator_app_is_sent_to_set_one_up(self):
         root = make_superuser()
         self.client.force_login(root)
-        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+        response = self.client.get(reverse("admin:index"), follow=True)
+        # allauth asks for the password again before setting up an app.
+        self.assertEqual(
+            [url for url, _ in response.redirect_chain[-2:]],
+            [reverse("mfa_activate_totp"), f"{reverse('account_reauthenticate')}?next=%2Faccounts%2F2fa%2Ftotp%2Factivate%2F"],
+        )
+        self.assertContains(response, "Database admin needs two-factor authentication")
         self.assertContains(self.client.get(reverse("profile")), "Database admin")
+        self.assertContains(self.client.get(reverse("profile")), "Two-factor authentication")
+
+    def test_a_superuser_must_enter_a_code(self):
+        root = make_superuser()
+        code = give_authenticator_app(root)
+        self.client.force_login(root)
+        response = self.client.get(reverse("admin:index"), follow=True)
+        self.assertEqual(response.redirect_chain[-1][0], f"{reverse('mfa_reauthenticate')}?next=%2Fadmin%2F")
+        # A password can't stand in for the code here, so it isn't offered.
+        self.assertContains(response, "Database admin needs a code")
+        self.assertNotContains(response, "Use your password")
+
+        self.assertEqual(self.enter_code("000000").status_code, 200)  # Wrong: the form again.
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 302)
+
+        self.assertRedirects(self.enter_code(code()), "/admin/", fetch_redirect_response=False)
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+    def test_signing_in_with_password_and_code_opens_it(self):
+        root = make_superuser()
+        code = give_authenticator_app(root)
+        response = self.client.post(reverse("account_login"), {"login": root.email, "password": PASSWORD})
+        self.assertRedirects(response, reverse("mfa_authenticate"), fetch_redirect_response=False)
+        self.client.post(reverse("mfa_authenticate"), {"code": code()})
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+    def test_a_code_only_lasts_so_long(self):
+        root = make_superuser()
+        code = give_authenticator_app(root)
+        self.client.force_login(root)
+        self.enter_code(code())
+        with self.settings(SUPERUSER_2FA_MAX_AGE=-1):
+            response = self.client.get(reverse("admin:index"), follow=True)
+        self.assertEqual(response.redirect_chain[-1][0], f"{reverse('mfa_reauthenticate')}?next=%2Fadmin%2F")
+
+    def test_the_login_page_will_not_redirect_off_site(self):
+        root = make_superuser()
+        code = give_authenticator_app(root)
+        self.client.force_login(root)
+        self.enter_code(code())
+        response = self.client.get(f"{reverse('admin:login')}?next=https://evil.example/")
+        self.assertRedirects(response, reverse("admin:index"), fetch_redirect_response=False)
 
     def test_the_superuser_role_cannot_be_changed_there(self):
         root = make_superuser()
         other = make_superuser(email="bo@example.com", first_name="Bo")
         member = make_member()
+        code = give_authenticator_app(root)
         self.client.force_login(root)
+        self.enter_code(code())
 
         url = reverse("admin:auth_user_change", args=[member.pk])
         form = self.client.get(url).context["adminform"].form
@@ -637,3 +720,17 @@ class DatabaseAdminTests(TestCase):
         response = self.client.post(reverse("admin:auth_user_delete", args=[other.pk]), {"post": "yes"})
         self.assertEqual(response.status_code, 403)
         self.assertTrue(User.objects.filter(pk=other.pk).exists())
+
+    def test_reset_2fa_from_the_command_line(self):
+        root = make_superuser()
+        give_authenticator_app(root)
+        out = StringIO()
+        call_command("superuser", "--list", stdout=out)
+        self.assertNotIn("no two-factor", out.getvalue())
+
+        call_command("superuser", "root@example.com", "--reset-2fa", stdout=StringIO())
+        self.assertFalse(Authenticator.objects.filter(user=root).exists())
+        self.assertEqual(AdminAction.objects.get().action, Action.TWO_FACTOR_RESET)
+        out = StringIO()
+        call_command("superuser", "--list", stdout=out)
+        self.assertIn("no two-factor authentication yet", out.getvalue())

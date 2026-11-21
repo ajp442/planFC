@@ -1,0 +1,15 @@
+{% load allauth %}
+{% comment %}
+allauth's two-factor page groups each method (authenticator app, recovery
+codes) in a panel. Its own panel lists the buttons as bullet points; here
+they are the site's usual button group.
+{% endcomment %}
+<section class="panel">
+    <h2>{% slot title %}{% endslot %}</h2>
+    {% slot body %}{% endslot %}
+    {% if slots.actions %}
+        <div class="button-group">
+            {% for action in slots.actions %}{{ action }}{% endfor %}
+        </div>
+    {% endif %}
+</section>

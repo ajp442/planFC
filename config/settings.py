@@ -33,7 +33,7 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost
 
 INSTALLED_APPS = [
     # Django's admin, but for superusers only (accounts/admin_site.py).
-    "accounts.admin_site.SuperuserAdminConfig",
+    "accounts.apps.SuperuserAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -46,6 +46,10 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    # Two-factor authentication: an authenticator app plus recovery codes.
+    # Anyone may turn it on; superusers must, to open /admin/
+    # (accounts/admin_site.py).
+    "allauth.mfa",
     # Installed unconditionally; each only appears on the sign-in page once
     # its credentials are set below.
     "allauth.socialaccount.providers.google",
@@ -179,6 +183,15 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https" if HTTPS else "http"
 # every request is what makes it roll forward), so only a member who stays
 # away for half a year has to sign in again.
 ACCOUNT_SESSION_REMEMBER = True
+
+# Two-factor authentication. Authenticator apps (TOTP) only, with recovery
+# codes for a lost phone: no SMS, which needs a paid provider and falls to
+# SIM swaps. The issuer is the name the authenticator app shows.
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
+MFA_TOTP_ISSUER = "planFC" if ENVIRONMENT == "production" else "planFC Dev"
+# How long a code entered for /admin/ lasts. Sessions last 180 days, so
+# without this a superuser's 2FA would be checked once and never again.
+SUPERUSER_2FA_MAX_AGE = 60 * 60 * 12
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 180
 SESSION_SAVE_EVERY_REQUEST = True
 

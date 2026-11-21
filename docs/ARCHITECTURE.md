@@ -202,8 +202,8 @@ Other choices in this file:
 | `/healthz` | `core.views.healthz` | JSON liveness plus a DB round-trip |
 | `/sw.js` | `TemplateView` → `pwa/sw.js` | `application/javascript` |
 | `/manifest.webmanifest` | `TemplateView` → `pwa/manifest.webmanifest` | `application/manifest+json` |
-| `/admin/` | Django admin | The operator's database tool, for superusers only (`accounts/admin_site.py`), not how admins manage members (§3.6). No superuser exists until you create one |
-| `/accounts/...` | allauth | Sign in/up/out, email confirmation, password reset and change, email addresses, Google, Apple, re-authentication |
+| `/admin/` | Django admin | The operator's database tool, for superusers with two-factor authentication only (`accounts/admin_site.py`), not how admins manage members (§3.6). No superuser exists until you create one |
+| `/accounts/...` | allauth | Sign in/up/out, email confirmation, password reset and change, email addresses, Google, Apple, re-authentication, two-factor authentication (`/accounts/2fa/`) |
 | `/profile/`, `/profile/picture/<id>/`, `/profile/delete/` | `accounts.views` | §3.6 |
 | `/push/subscribe/`, `/push/unsubscribe/`, `/push/test/` | `accounts.views` | JSON from `profile.js` and `app.js` |
 | `/members/`, `/members/add/`, `/members/activity/`, `/members/<id>/...` | `accounts.member_views` | Admins only: 403 for other members (§3.6) |
@@ -315,8 +315,16 @@ Apple are configuration in `settings.py`, not our code. The policy:
   environment variables are set, and allauth shows no button for an unlisted
   provider. Their addresses count as confirmed, and they join an existing
   account with the same address (`SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT`);
-- `/admin/` keeps Django's username login, so an existing superuser still works.
-  Nothing an admin does day to day needs it; see "Roles and member management" below.
+- two-factor authentication is `allauth.mfa`, with authenticator apps and
+  recovery codes only (`MFA_SUPPORTED_TYPES`). Once an account has it, allauth
+  asks for a code after the password at every sign-in;
+- `/admin/` has no login of its own. `SuperuserAdminSite` (`accounts/admin_site.py`)
+  sends visitors to the app's sign-in, and lets in only a superuser whose
+  session holds an allauth "mfa" authentication record younger than
+  `SUPERUSER_2FA_MAX_AGE` (12 hours). The 180-day session would otherwise make the
+  code a one-off. Without that record they go to set up an authenticator app
+  (`mfa_activate_totp`) or to enter a code (`mfa_reauthenticate`). Nothing an
+  admin does day to day needs `/admin/`; see "Roles and member management" below.
 
 allauth's pages extend `allauth/layouts/base.html`. `accounts` overrides that one
 template to extend the site's `base.html`, whose blocks have the same names, so
@@ -340,9 +348,12 @@ templates (button, provider) are overridden to add CSS classes.
 
 - **Three roles, on Django's own flags.** A member is any `User`; an admin is an
   active one with `is_staff` (or `is_superuser`, so a `createsuperuser` account
-  counts). A superuser (`is_superuser`) is an admin who can also open `/admin/`:
-  `SuperuserAdminSite` replaces Django's site, whose own test (`is_staff`) would
-  let every admin in. The superuser role is set only by `manage.py superuser`;
+  counts). A superuser (`is_superuser`) is an admin who can also open `/admin/`
+  with a recent 2FA code: `SuperuserAdminSite` replaces Django's site (through
+  `accounts.apps.SuperuserAdminConfig` in `INSTALLED_APPS`), whose own test
+  (`is_staff`) would let every admin in. The superuser role is set only by
+  `manage.py superuser`, which also lists superusers and resets a lost
+  authenticator (`--reset-2fa`);
   `members.is_protected()` stops the Members views from changing a superuser's
   role, deactivating or deleting them, and `PlanUserAdmin` makes
   `is_superuser` read-only in `/admin/` and does the same there. `members.is_admin()` is the one definition, and `@admin_required`

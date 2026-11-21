@@ -1,0 +1,57 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth %}
+{% load i18n %}
+{% comment %}
+Asking for an authenticator code. allauth's version also offers the password
+or an emailed code instead. For Database admin those can't stand in for the
+code (accounts/admin_site.py), so they are left out when that is where the
+member is going.
+{% endcomment %}
+{% block head_title %}{% trans "Confirm Access" %}{% endblock head_title %}
+{% block content %}
+    {% with for_admin=request.GET.next|slice:":7" %}
+    {% if for_admin == "/admin/" %}
+        {% element h1 %}Enter your code{% endelement %}
+        {% element p %}
+            Database admin needs a code from your authenticator app. If you
+            don't have your phone, one of your recovery codes works too.
+        {% endelement %}
+    {% else %}
+        {% element h1 %}{% trans "Confirm Access" %}{% endelement %}
+        {% element p %}
+            {% blocktranslate %}Please reauthenticate to safeguard your account.{% endblocktranslate %}
+        {% endelement %}
+        {% element p %}
+            {% blocktranslate %}Enter an authenticator code:{% endblocktranslate %}
+        {% endelement %}
+    {% endif %}
+    {% url 'mfa_reauthenticate' as action_url %}
+    {% element form form=form method="post" action=action_url %}
+        {% slot body %}
+            {% csrf_token %}
+            {% element fields form=form unlabeled=True %}
+            {% endelement %}
+            {{ redirect_field }}
+        {% endslot %}
+        {% slot actions %}
+            {% element button type="submit" tags="primary,mfa,login" %}
+                {% trans "Confirm" %}
+            {% endelement %}
+        {% endslot %}
+    {% endelement %}
+    {% if reauthentication_alternatives and for_admin != "/admin/" %}
+        {% element hr %}
+        {% endelement %}
+        {% element h2 %}
+            {% translate "Alternative options" %}
+        {% endelement %}
+        {% element button_group %}
+            {% for alt in reauthentication_alternatives %}
+                {% element button href=alt.url tags="primary,outline" %}
+                    {{ alt.description }}
+                {% endelement %}
+            {% endfor %}
+        {% endelement %}
+    {% endif %}
+    {% endwith %}
+{% endblock content %}
