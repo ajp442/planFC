@@ -1,7 +1,7 @@
 {% load static %}// Bump CACHE_VERSION whenever the shell assets change. A service worker that
 // serves a stale shell forever is the classic PWA failure, and it is invisible
 // in development because you are always hard-reloading.
-const CACHE_VERSION = "planfc-v9";
+const CACHE_VERSION = "planfc-v10";
 
 const OFFLINE_URL = "{% url 'offline' %}";
 

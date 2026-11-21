@@ -50,6 +50,11 @@ a { color: var(--pitch); }
   padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+  /* Pinned and opaque, so the menu and profile stay in reach and nothing
+     scrolls up under the status bar, which iOS blurs. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .me { flex: none; max-width: 55%; }

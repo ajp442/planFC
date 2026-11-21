@@ -16,7 +16,13 @@
      this link instead; without it the icon is a screenshot of the page. -->
 <link rel="apple-touch-icon" href="{% static icon_dir|add:'icon_180.png' %}">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+{% comment %}
+"default", not "black-translucent": translucent draws the page under the
+status bar, and iOS blurs that strip, softening the header below the clock
+even before scrolling. iOS reads this only when the app is added to the home
+screen, so a change needs the icon removed and added again.
+{% endcomment %}
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
 
 <link rel="icon" href="{% static icon_dir|add:'icon_192.png' %}">
