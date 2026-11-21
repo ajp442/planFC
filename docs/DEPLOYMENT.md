@@ -280,8 +280,8 @@ docker compose exec web python manage.py make_admin you@example.com
 ```
 
 Every later admin, and all member management, is done in the app
-([ADMIN_GUIDE.md](ADMIN_GUIDE.md)). `createsuperuser` is only needed if you want
-Django's `/admin/` database tool.
+([ADMIN_GUIDE.md](ADMIN_GUIDE.md)). For Django's `/admin/` database tool, make
+yourself a superuser as well: `manage.py superuser you@example.com`.
 
 `restart: unless-stopped` and Docker starting at boot bring production back after
 a reboot or power cut. Don't touch it after that.

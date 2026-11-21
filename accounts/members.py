@@ -1,11 +1,14 @@
 """Roles and member management: who is an admin, what state an account is
 in, invitations, and the record of what admins did.
 
-There are two roles. Everyone with an account is a member, and an admin is a
+There are three roles. Everyone with an account is a member, and an admin is a
 member with Django's `is_staff` flag. Using the stock flag means no custom
 user model and no extra table, and `createsuperuser` accounts count as admins
-without further setup. docs/ADMIN_GUIDE.md describes the roles for the people
-who hold them.
+without further setup. A superuser (`is_superuser`) is an admin who can also
+open Django's /admin/ (admin_site.py). That role is set only on the command
+line (`manage.py superuser`), and admins can't touch a superuser's account
+in the app (is_protected). docs/ADMIN_GUIDE.md describes the roles for the
+people who hold them.
 """
 
 import logging
@@ -68,16 +71,25 @@ def is_only_admin(user):
     return not others.exists()
 
 
+def is_protected(user):
+    """A superuser's role, access and account can only be changed on the
+    command line, so no admin, or stolen admin session, can demote, lock
+    out or delete the people who hold the database."""
+    return user.is_superuser
+
+
+SUPERUSER_MESSAGE = (
+    "{name} is a superuser. Superusers can only be changed on the server's "
+    "command line (manage.py superuser)."
+)
+
+
 def set_admin(user, make_admin):
-    """Removing the role clears the superuser flag as well. Otherwise a
-    demoted superuser would still be an admin, and still have /admin/."""
-    if make_admin:
-        user.is_staff = True
-        user.save(update_fields=["is_staff"])
-    else:
-        user.is_staff = False
-        user.is_superuser = False
-        user.save(update_fields=["is_staff", "is_superuser"])
+    if is_protected(user):
+        # A superuser is always an admin; `manage.py superuser --remove` first.
+        raise ValueError("Can't change a superuser's admin role.")
+    user.is_staff = make_admin
+    user.save(update_fields=["is_staff"])
 
 
 # --- Account state -----------------------------------------------------------

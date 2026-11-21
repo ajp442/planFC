@@ -14,7 +14,7 @@
 
   <dl class="facts">
     <dt>Role</dt>
-    <dd>{% if row.is_admin %}Admin{% else %}Member{% endif %}{% if is_self %} (you){% endif %}</dd>
+    <dd>{% if row.is_superuser %}Superuser{% elif row.is_admin %}Admin{% else %}Member{% endif %}{% if is_self %} (you){% endif %}</dd>
     <dt>Status</dt>
     <dd>{{ row.status_label }}</dd>
     <dt>Email</dt>
@@ -79,7 +79,13 @@
 
 <section class="card">
   <h2>Role</h2>
-  {% if is_self %}
+  {% if row.is_superuser %}
+    <p class="muted">
+      A superuser: an admin who can also edit the database in Database admin.
+      This role, and the account's access, can only be changed on the server's
+      command line, not in the app.
+    </p>
+  {% elif is_self %}
     <p class="muted">You're an admin. You can't change your own role; another admin has to.</p>
   {% elif row.is_admin %}
     <p class="muted">An admin: can add, change and remove members, and change roles.</p>
@@ -90,7 +96,7 @@
   {% endif %}
 </section>
 
-{% if not is_self %}
+{% if not is_self and not row.is_superuser %}
 <section class="card">
   <h2>Access</h2>
   {% if member.is_active %}
@@ -114,7 +120,7 @@
   {% include "accounts/members/_history.html" with show_target=False %}
 </section>
 
-{% if not is_self %}
+{% if not is_self and not row.is_superuser %}
 <section class="card danger-zone">
   <h2>Delete account</h2>
   <p class="muted">Removes their account, profile and sign-in methods for good. To keep them out but keep the account, deactivate instead.</p>

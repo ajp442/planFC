@@ -37,6 +37,7 @@ def _row(user, confirmed_ids, picture_times):
         "initials": initials(user),
         "picture_url": picture_url(user.pk, updated_at) if updated_at else None,
         "is_admin": user.is_staff or user.is_superuser,
+        "is_superuser": user.is_superuser,
         "status": state,
         "status_label": members.STATUS_LABELS[state],
     }
@@ -154,6 +155,8 @@ def _confirm_email(request, member):
 def _deactivate(request, member):
     if member.pk == request.user.pk:
         return False, "You can't deactivate your own account. Ask another admin."
+    if members.is_protected(member):
+        return False, members.SUPERUSER_MESSAGE.format(name=display_name(member))
     if member.is_active:
         member.is_active = False
         member.save(update_fields=["is_active"])
@@ -208,6 +211,9 @@ def member_role(request, user_id):
     if member.pk == request.user.pk:
         messages.error(request, "You can't change your own role. Ask another admin.")
         return redirect("member_detail", user_id=member.pk)
+    if members.is_protected(member):
+        messages.error(request, members.SUPERUSER_MESSAGE.format(name=display_name(member)))
+        return redirect("member_detail", user_id=member.pk)
     currently_admin = member.is_staff or member.is_superuser
     if request.method == "POST":
         members.set_admin(member, not currently_admin)
@@ -232,6 +238,9 @@ def member_delete(request, user_id):
     if member.pk == request.user.pk:
         # One way to delete yourself, with its own safeguards.
         return redirect("delete_account")
+    if members.is_protected(member):
+        messages.error(request, members.SUPERUSER_MESSAGE.format(name=display_name(member)))
+        return redirect("member_detail", user_id=member.pk)
     if request.method == "POST":
         name = display_name(member)
         # Recorded first: the label has to be read before the row is gone.

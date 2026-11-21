@@ -58,7 +58,7 @@
               <a href="{% url 'member_list' %}?role=admin">Admins and roles</a>
               <a href="{% url 'member_add' %}">Add a member</a>
               <a href="{% url 'member_activity' %}">Admin changes</a>
-              {# Django's own admin shows nothing to an admin who isn't a superuser. #}
+              {# /admin/ lets in superusers only (accounts/admin_site.py). #}
               {% if user.is_superuser %}<a href="{% url 'admin:index' %}">Database admin</a>{% endif %}
             </div>
           </details>

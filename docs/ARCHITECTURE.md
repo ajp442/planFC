@@ -202,7 +202,7 @@ Other choices in this file:
 | `/healthz` | `core.views.healthz` | JSON liveness plus a DB round-trip |
 | `/sw.js` | `TemplateView` → `pwa/sw.js` | `application/javascript` |
 | `/manifest.webmanifest` | `TemplateView` → `pwa/manifest.webmanifest` | `application/manifest+json` |
-| `/admin/` | Django admin | The operator's database tool, not how admins manage members (§3.6). No superuser exists until you create one |
+| `/admin/` | Django admin | The operator's database tool, for superusers only (`accounts/admin_site.py`), not how admins manage members (§3.6). No superuser exists until you create one |
 | `/accounts/...` | allauth | Sign in/up/out, email confirmation, password reset and change, email addresses, Google, Apple, re-authentication |
 | `/profile/`, `/profile/picture/<id>/`, `/profile/delete/` | `accounts.views` | §3.6 |
 | `/push/subscribe/`, `/push/unsubscribe/`, `/push/test/` | `accounts.views` | JSON from `profile.js` and `app.js` |
@@ -338,15 +338,20 @@ templates (button, provider) are overridden to add CSS classes.
 **Roles and member management.** What admins see and do is described in
 [ADMIN_GUIDE.md](ADMIN_GUIDE.md); this is how it is built.
 
-- **Two roles, on Django's own flags.** A member is any `User`; an admin is an
+- **Three roles, on Django's own flags.** A member is any `User`; an admin is an
   active one with `is_staff` (or `is_superuser`, so a `createsuperuser` account
-  counts). `members.is_admin()` is the one definition, and `@admin_required`
+  counts). A superuser (`is_superuser`) is an admin who can also open `/admin/`:
+  `SuperuserAdminSite` replaces Django's site, whose own test (`is_staff`) would
+  let every admin in. The superuser role is set only by `manage.py superuser`;
+  `members.is_protected()` stops the Members views from changing a superuser's
+  role, deactivating or deleting them, and `PlanUserAdmin` makes
+  `is_superuser` read-only in `/admin/` and does the same there. `members.is_admin()` is the one definition, and `@admin_required`
   wraps every Members view: signed-out visitors go to sign-in, other members get
   `403.html`. No custom user model, group or permission table; if a third role
   is ever needed, this is the function to change. Later apps (games, ledger)
   should use the same decorator rather than their own test.
 - **The first admin comes from the command line** (`manage.py make_admin
-  <email>`, with `--superuser` for `/admin/` access too), since only an admin can make another in the app. The same command
+  <email>`; `manage.py superuser <email>` for `/admin/` access), since only an admin can make another in the app. The same command
   is the way back in if none is left.
 - **Invitations.** `create_invited_member()` makes a `User` with an unusable
   password and an unverified `EmailAddress`, and emails a link to

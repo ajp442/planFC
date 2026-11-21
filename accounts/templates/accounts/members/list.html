@@ -36,7 +36,7 @@
             <div class="muted member-email">{{ row.user.email }}</div>
           </div>
           <div class="pills">
-            {% if row.is_admin %}<div class="pill pill-admin">Admin</div>{% endif %}
+            {% if row.is_superuser %}<div class="pill pill-admin">Superuser</div>{% elif row.is_admin %}<div class="pill pill-admin">Admin</div>{% endif %}
             {% if row.status != "active" %}<div class="pill pill-{{ row.status }}">{{ row.status_label }}</div>{% endif %}
           </div>
         </a>
