@@ -77,3 +77,27 @@ class PaymentForm(forms.Form):
         if paid_on > timezone.localdate():
             raise ValidationError("That date is in the future.")
         return paid_on
+
+    @classmethod
+    def for_payment(cls, payment):
+        """The form filled in with a payment's current values, for editing."""
+        return cls(initial={
+            "payer_name": payment.payer_name,
+            "member": payment.member_id,
+            "amount": payment.amount,
+            "paid_on": payment.paid_on,
+            "method": payment.method,
+            "note": payment.note,
+        })
+
+
+class PaymentEditForm(PaymentForm):
+    """A superuser correcting a payment. Every field can change; the history
+    keeps what each one was before."""
+
+    reason = forms.CharField(
+        label="Reason for the change",
+        required=False,
+        max_length=320,
+        widget=forms.TextInput(attrs={"placeholder": "Optional, kept in the history"}),
+    )

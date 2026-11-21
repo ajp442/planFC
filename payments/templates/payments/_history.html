@@ -1,0 +1,31 @@
+{% comment %}
+Entries from payment history (history.py): `history` is a list of
+{change, lines}. `show_payment` links each entry to its payment, for the page
+that lists every payment's history together; `live_ids` says which payments
+still exist.
+{% endcomment %}
+<ul class="history">
+  {% for entry in history %}
+    {% with change=entry.change %}
+      <li>
+        <div>
+          <strong>{{ change.get_action_display }}</strong>
+          {% if show_payment %}
+            {% if change.payment_id in live_ids %}
+              <a href="{% url 'payment_detail' change.payment_id %}">payment #{{ change.payment_id }}</a>
+            {% else %}
+              payment #{{ change.payment_id }}
+            {% endif %}
+          {% endif %}
+        </div>
+        <dl class="facts change-lines">
+          {% for field, text in entry.lines %}<dt>{{ field }}</dt><dd>{{ text|linebreaksbr }}</dd>{% endfor %}
+          {% if change.reason %}<dt>Reason</dt><dd>{{ change.reason }}</dd>{% endif %}
+        </dl>
+        <div class="muted small">{{ change.created_at|date:"M j, Y, g:i a" }} by {{ change.actor_label }}</div>
+      </li>
+    {% endwith %}
+  {% empty %}
+    <li class="muted">Nothing yet.</li>
+  {% endfor %}
+</ul>

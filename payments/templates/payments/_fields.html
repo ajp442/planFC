@@ -1,0 +1,53 @@
+{% comment %}
+The payment form's fields, shared by recording (payments.html) and editing
+(detail.html). payments.js turns "Who paid" into a member search; the page
+must also include the `suggestions` JSON.
+{% endcomment %}
+{{ form.non_field_errors }}
+{{ form.member }}
+
+<div class="field combo">
+  <label for="{{ form.payer_name.id_for_label }}">{{ form.payer_name.label }}</label>
+  {{ form.payer_name }}
+  <ul class="suggestions" id="payer_suggestions" role="listbox" aria-label="Members" hidden></ul>
+  <span class="helptext" id="payer_status" aria-live="polite"></span>
+  {{ form.payer_name.errors }}
+  {{ form.member.errors }}
+</div>
+
+<div class="field-row">
+  <p>
+    <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+    {{ form.amount }}
+    {{ form.amount.errors }}
+  </p>
+  <p>
+    <label for="{{ form.paid_on.id_for_label }}">{{ form.paid_on.label }}</label>
+    {{ form.paid_on }}
+    {{ form.paid_on.errors }}
+  </p>
+</div>
+
+<fieldset class="choices">
+  <legend>{{ form.method.label }}</legend>
+  <div class="choice-pills">
+    {% for radio in form.method %}
+      <label class="choice" for="{{ radio.id_for_label }}">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+    {% endfor %}
+  </div>
+  {{ form.method.errors }}
+</fieldset>
+
+<p>
+  <label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>
+  {{ form.note }}
+  {{ form.note.errors }}
+</p>
+
+{% if form.reason %}
+  <p>
+    <label for="{{ form.reason.id_for_label }}">{{ form.reason.label }}</label>
+    {{ form.reason }}
+    {{ form.reason.errors }}
+  </p>
+{% endif %}

@@ -1,18 +1,31 @@
-"""Recording payments: one page, the form on top and what was recorded
-below, so a run of payments can be entered one after another."""
+"""Payments: admins can look, superusers can also record and edit.
+
+- /payments/ lists payments, with the form for recording one on top for
+  superusers, so a run of payments can be entered one after another.
+- /payments/<id>/ shows one payment and its history; superusers edit it there.
+- /payments/changes/ is the history of every payment, for auditing.
+
+Every change goes through history.py in the same transaction, and nobody can
+edit that history (models.PaymentChange).
+"""
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.formats import date_format
 
 from accounts.context_processors import display_name
-from accounts.members import label, superuser_required
+from accounts.members import admin_required, is_active_superuser, label
 
-from .forms import PaymentForm
-from .models import Payment
+from . import history
+from .forms import PaymentEditForm, PaymentForm
+from .models import Payment, PaymentChange
 
 RECENT = 100
+CHANGES_SHOWN = 200
 
 
 def _suggestions():
@@ -26,34 +39,93 @@ def _suggestions():
     ]
 
 
-@superuser_required
+def _apply(payment, data):
+    """Copies the form's values onto the payment. A linked payment carries
+    the account's own name, whatever was typed."""
+    member = data["member"]
+    payment.member = member
+    payment.payer_name = display_name(member) if member else data["payer_name"]
+    payment.amount = data["amount"]
+    payment.paid_on = data["paid_on"]
+    payment.method = data["method"]
+    payment.note = data["note"].strip()
+
+
+def _summary(payment):
+    return (
+        f"${payment.amount} from {payment.payer_name} "
+        f"({payment.get_method_display()}, {date_format(payment.paid_on, 'M j, Y')})"
+    )
+
+
+def _entries(changes):
+    return [{"change": change, "lines": history.lines(change)} for change in changes]
+
+
+@admin_required
 def payments(request):
-    form = PaymentForm(request.POST or None)
+    can_record = is_active_superuser(request.user)
+    if request.method == "POST" and not can_record:
+        raise PermissionDenied
+    form = PaymentForm(request.POST or None) if can_record else None
     if request.method == "POST" and form.is_valid():
-        data = form.cleaned_data
-        member = data["member"]
-        payment = Payment.objects.create(
-            member=member,
-            # A linked payment carries the account's own name, whatever was typed.
-            payer_name=display_name(member) if member else data["payer_name"],
-            amount=data["amount"],
-            paid_on=data["paid_on"],
-            method=data["method"],
-            note=data["note"].strip(),
-            recorded_by=request.user,
-            recorded_by_label=label(request.user),
-        )
-        messages.success(
-            request,
-            f"Recorded ${payment.amount} from {payment.payer_name} "
-            f"({payment.get_method_display()}, {date_format(payment.paid_on, 'M j, Y')}).",
-        )
+        payment = Payment(recorded_by=request.user, recorded_by_label=label(request.user))
+        _apply(payment, form.cleaned_data)
+        with transaction.atomic():
+            payment.save()
+            history.record_created(request.user, payment)
+        messages.success(request, f"Recorded {_summary(payment)}.")
         # Redirect, so reloading the page can't record the payment twice.
         return redirect("payments")
+    recent = Payment.objects.annotate(
+        edits=Count("changes", filter=Q(changes__action=PaymentChange.Action.EDITED)),
+    )[:RECENT]
     return render(request, "payments/payments.html", {
         "form": form,
-        "suggestions": _suggestions(),
-        "recent": Payment.objects.all()[:RECENT],
+        "can_record": can_record,
+        "suggestions": _suggestions() if can_record else None,
+        "recent": recent,
         "recent_limit": RECENT,
         "total_count": Payment.objects.count(),
+    })
+
+
+@admin_required
+def payment_detail(request, payment_id):
+    payment = get_object_or_404(Payment.objects.select_related("member"), pk=payment_id)
+    can_edit = is_active_superuser(request.user)
+    if request.method == "POST" and not can_edit:
+        raise PermissionDenied
+    form = None
+    if can_edit:
+        form = PaymentEditForm(request.POST) if request.method == "POST" else PaymentEditForm.for_payment(payment)
+    if request.method == "POST" and form.is_valid():
+        before = history.snapshot(payment)
+        _apply(payment, form.cleaned_data)
+        with transaction.atomic():
+            change = history.record_edited(request.user, payment, before, form.cleaned_data["reason"].strip())
+            if change:
+                payment.save()
+        if change:
+            messages.success(request, "Saved. The history below keeps what it was before.")
+        else:
+            messages.info(request, "Nothing was changed.")
+        return redirect("payment_detail", payment_id=payment.pk)
+    return render(request, "payments/detail.html", {
+        "payment": payment,
+        "form": form,
+        "can_edit": can_edit,
+        "suggestions": _suggestions() if can_edit else None,
+        "history": _entries(payment.changes.all()),
+    })
+
+
+@admin_required
+def payment_changes(request):
+    changes = list(PaymentChange.objects.all()[:CHANGES_SHOWN])
+    live_ids = set(Payment.objects.filter(pk__in=[c.payment_id for c in changes]).values_list("pk", flat=True))
+    return render(request, "payments/changes.html", {
+        "history": _entries(changes),
+        "live_ids": live_ids,
+        "shown": CHANGES_SHOWN,
     })

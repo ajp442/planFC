@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block head_title %}Payment history{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'payments' %}">‹ Payments</a></p>
+<div class="card">
+  <h1>Payment history</h1>
+  <p class="muted">
+    Every payment recorded, edited or deleted, newest first (the latest {{ shown }}).
+    This is kept for auditing: nobody can edit or remove it, not even a superuser.
+  </p>
+  {% include "payments/_history.html" with show_payment=True %}
+</div>
+{% endblock %}

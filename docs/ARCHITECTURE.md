@@ -126,10 +126,11 @@ there speculatively.
 │   ├── tests.py, tests_members.py
 │   ├── management/commands/   generate_vapid_keys, make_admin
 │   └── templates/          profile and members pages, plus overrides of allauth's
-├── payments/               Payments recorded by hand, superusers only (§3.7)
-│   ├── models.py           Payment
-│   ├── forms.py, views.py, urls.py   /payments/
-│   ├── admin.py            view and delete in Database admin, never edit
+├── payments/               Payments recorded by hand: admins look, superusers edit (§3.7)
+│   ├── models.py           Payment, PaymentChange (append-only history)
+│   ├── history.py          every change goes through here and is recorded
+│   ├── forms.py, views.py, urls.py   /payments/...
+│   ├── admin.py            view in Database admin; delete (recorded), never edit
 │   └── tests.py
 ├── static/                 Authored static assets (source for collectstatic)
 │   ├── css/app.css
@@ -418,26 +419,52 @@ Zelle or cash, recorded by hand. Nothing is processed.
   `paid_on`, `method` (`paypal`, `venmo`, `zelle`, `cash`, `other`), `note`,
   `recorded_by` / `recorded_by_label` and `created_at` (`auto_now_add`).
   `member` is null for someone without an account, and the row keeps the typed
-  name. Linking it later only has to fill in the FK. As with `AdminAction`,
-  the labels copy names so a row outlives the accounts it mentions.
-- **Access** is `members.superuser_required`: an active superuser, with no
-  recent-2FA check. The role can only be granted with `manage.py superuser`,
-  which is what protects the page. `/payments/` is in
-  `PrivatePagesMiddleware`'s prefixes, so it is always `no-store`.
-- **One page** (`views.payments`) has the form and the latest 100 payments.
-  A successful POST redirects back (post/redirect/get), so a reload can't
-  record twice. The form defaults `paid_on` to `timezone.localdate()` and
-  refuses future dates. A linked payment stores the account's display name,
-  not the typed fragment.
+  name. A linked payment stores the account's display name.
+- **`PaymentChange`** is the audit trail: one row per payment recorded, edited
+  or deleted, with `actor` / `actor_label`, a `reason`, `created_at`, and
+  `values` as text the way people read them. That is the full snapshot for
+  recorded and deleted payments, or `{field: [before, after]}` for an edit.
+  Rows are only ever inserted, through `history.py`, in the same transaction as
+  the change.
+  - `save()` on an existing row and `delete()` raise `ValueError`.
+  - Migration 0002 adds a Postgres trigger that raises on any `UPDATE` or
+    `DELETE` of the table, so querysets, raw SQL and Database admin are refused
+    too. (`TRUNCATE`, which test teardown uses, fires no row triggers.)
+  - Because nothing may update a row, both foreign keys are
+    `on_delete=DO_NOTHING, db_constraint=False`. Deleting a payment or an
+    account would otherwise try to null them and hit the trigger. `payment_id`
+    can therefore point at a deleted payment; the views check before linking.
+- **Access**:
+  - `admin_required` on every page. Admins get the list, each payment's page
+    and `/payments/changes/`, read-only.
+  - `members.is_active_superuser` decides who sees the forms. A POST from
+    anyone else is a 403.
+  - There is no recent-2FA check: the superuser role can only be granted with
+    `manage.py superuser`, which is what protects these pages.
+  - `/payments/` is in `PrivatePagesMiddleware`'s prefixes, so it is always
+    `no-store`.
+- **Pages**:
+  - `/payments/`: the record form (superusers) above the latest 100 payments.
+    A successful POST redirects back (post/redirect/get), so a reload can't
+    record twice.
+  - `/payments/<id>/`: one payment, the edit form (superusers) and its history.
+    `PaymentEditForm` is the record form plus `reason`. A save that changes
+    nothing records nothing.
+  - `/payments/changes/`: the latest 200 history entries for all payments.
+  - The form defaults `paid_on` to `timezone.localdate()` and refuses future
+    dates.
 - **Suggestions**: the view embeds every account (id, name, email, active) with
   `json_script`, and `static/js/payments.js` filters it on each keystroke.
   Every typed word must be a substring of the name or email. Picking a
   suggestion, or typing a full name that matches exactly one member, sets the
   hidden `member` field, and any other edit clears it. At hundreds of accounts
   this is a few kilobytes and needs no search endpoint. Without JavaScript the
-  box is plain text and every payment is recorded unlinked.
-- **No editing.** `PaymentAdmin` disallows add and change. Delete is the
-  escape hatch for a mistaken entry, behind Database admin's 2FA.
+  box is plain text and the payment is saved unlinked.
+- **Database admin**:
+  - `PaymentAdmin` disallows add and change. Deletion is one at a time (no bulk
+    action) through `delete_model`, which writes a "deleted" history entry
+    first.
+  - `PaymentChangeAdmin` is view-only.
 
 ---
 

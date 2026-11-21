@@ -496,3 +496,10 @@ form .choice span { display: inline; margin: 0; color: inherit; font-size: 0.937
 .payment-list .pill { display: inline-block; margin-left: 6px; }
 .pill-unlinked { border-color: var(--dev); color: var(--dev); }
 .small { font-size: 0.8125rem; }
+
+/* A payment in the list opens its page. */
+.payment-link { display: block; color: inherit; text-decoration: none; }
+.payment-list li:has(.payment-link) { padding: 0; }
+.payment-link { padding: 10px 0; }
+h1.payment-amount, h1.payment-name { margin: 0 0 12px; }
+.change-lines { margin: 6px 0; font-size: 0.875rem; }

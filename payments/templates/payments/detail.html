@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static %}
+{% block head_title %}Payment #{{ payment.pk }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'payments' %}">‹ Payments</a></p>
+
+<div class="card">
+  <div class="payment-line">
+    <h1 class="payment-name">{{ payment.payer_name }}</h1>
+    <h1 class="payment-amount">${{ payment.amount }}</h1>
+  </div>
+  <dl class="facts">
+    <dt>Account</dt>
+    <dd>
+      {% if payment.member %}
+        <a href="{% url 'member_detail' payment.member_id %}">{{ payment.member.email }}</a>
+      {% else %}
+        <span class="pill pill-unlinked">No account</span>
+      {% endif %}
+    </dd>
+    <dt>Date paid</dt><dd>{{ payment.paid_on|date:"M j, Y" }}</dd>
+    <dt>Method</dt><dd>{{ payment.get_method_display }}</dd>
+    {% if payment.note %}<dt>Note</dt><dd>{{ payment.note|linebreaksbr }}</dd>{% endif %}
+    <dt>Recorded</dt><dd>{{ payment.created_at|date:"M j, Y, g:i a" }} by {{ payment.recorded_by_label }}</dd>
+  </dl>
+</div>
+
+{% if can_edit %}
+  <div class="card">
+    <h2>Edit this payment</h2>
+    <p class="muted">Any field can be corrected. The history below keeps what it was before, and can't be changed.</p>
+    <form method="post" class="stack" id="payment_form">
+      {% csrf_token %}
+      {% include "payments/_fields.html" %}
+      <button type="submit">Save the changes</button>
+    </form>
+  </div>
+{% endif %}
+
+<div class="card">
+  <h2>History</h2>
+  <p class="muted">Every time this payment was recorded or changed. Nobody can edit this.</p>
+  {% include "payments/_history.html" %}
+</div>
+
+{% if can_edit %}{{ suggestions|json_script:"payment_members" }}{% endif %}
+{% endblock %}
+{% block extra_body %}{% if can_edit %}<script src="{% static 'js/payments.js' %}"></script>{% endif %}{% endblock %}

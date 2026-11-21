@@ -34,7 +34,7 @@ A fully integrated one-stop-shop solution would be ideal and would include the f
 - Admins can manually add/remove games
 - Admins can update costs on a game/game basis if needed.
 - Admins can add reoccurring games, this is useful since all the games are usually same time, place, cost, and location.
-- Admins can manually add Users payments. (The first version limits this to superusers; see Payments.)
+- Admins can manually add Users payments. (The first version: superusers add and edit, admins only view; see Payments.)
 - Admins can manually track expenses: field rentals, Jersey's, game ball, Website maintenance, etc...
 - Everything like payments, signups, manual editions, comments, etc... would require a non-editable internal timestamp for when data was
   entered into the system.
@@ -165,16 +165,28 @@ Each milestone should be complete and well vetted before moving onto the next mi
   - Each payment also keeps who recorded it and a creation timestamp nobody can edit, separate
     from the date paid. Names are copied onto the row, so it still reads properly after an
     account is deleted. The payment survives that, unlinked.
-  - Only **superusers** can record or see payments. The role is granted only on the server's
-    command line, which is the safeguard. Unlike Database admin, the page asks for no fresh
-    two-factor code every 12 hours, so entering payments stays quick on a phone.
-  - The page lists the latest 100 payments under the form, so a run of payments can be entered
-    and checked in one place.
-  - Payments can't be edited. A mistaken entry can be deleted in Database admin (with 2FA) and
-    entered again. Nothing else can change one, so nobody can silently alter an amount.
+  - **Who can do what:**
+    - **Superusers** record payments and can edit any detail of one afterwards: who paid, the
+      linked account, amount, date, method and note, with an optional reason. The role is granted
+      only on the server's command line, which is the safeguard. Unlike Database admin, these
+      pages ask for no fresh two-factor code every 12 hours, so entering payments stays quick on
+      a phone.
+    - **Admins** see every payment and its history, read-only. They can't add or edit.
+    - **Members** see nothing here yet.
+  - **The history is for auditing only.** Every payment recorded, edited or deleted leaves an
+    entry: the values recorded, or each changed field's old and new value, plus who, when and
+    the reason. Nobody can edit or remove an entry, not even a superuser. The app refuses, and
+    the database itself refuses (a trigger blocks UPDATE and DELETE on the history table), so
+    Database admin or a hand-typed query can't either. Entries copy names and values as text, so
+    they survive the payment or the accounts involved being deleted.
+  - The recording page lists the latest 100 payments under the form, so a run of payments can
+    be entered and checked in one place. Each opens its own page with its history, and
+    *Payment history* lists every change to every payment. Edited payments are marked "Edited".
+  - Deleting a payment is only possible in Database admin (with 2FA), for a true duplicate, and
+    the deletion is written to the history with the payment's last values.
 - **Next for manual payments**, not built yet:
-  - Link "No account" payments to an account once the person signs up or is found.
-  - A correction trail: void or adjust a payment with a reason instead of deleting it.
+  - Link "No account" payments to an account once the person signs up or is found. Editing a
+    payment can already do this one at a time.
   - Members see their own payment history and balance. This needs games and their costs, so it
     belongs with the ledger.
   - Admins (not only superusers) recording payments, if superusers become a bottleneck.

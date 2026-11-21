@@ -62,20 +62,24 @@ def admin_required(view):
     return wrapper
 
 
-def superuser_required(view):
-    """For the club's money (payments/). Like admin_required, but only an
-    active superuser gets through.
+def is_active_superuser(user):
+    """Who may change the club's money (payments/): record payments and edit
+    them. Admins may only look.
 
     Unlike Database admin (admin_site.py), it asks for no recent two-factor
     code: payments are entered often, from a phone, and the role itself can
     only be given on the server's command line, so no admin, or stolen
     admin session, can grant it."""
+    return bool(user is not None and user.is_authenticated and user.is_active and user.is_superuser)
+
+
+def superuser_required(view):
+    """Like admin_required, but only an active superuser gets through."""
 
     @wraps(view)
     @login_required
     def wrapper(request, *args, **kwargs):
-        user = request.user
-        if not (user.is_active and user.is_superuser):
+        if not is_active_superuser(request.user):
             raise PermissionDenied
         return view(request, *args, **kwargs)
 

@@ -65,3 +65,58 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"${self.amount} from {self.payer_name} ({self.get_method_display()}, {self.paid_on})"
+
+
+class PaymentChange(models.Model):
+    """One entry in a payment's history: recorded, edited or deleted, by
+    whom, when, and the values involved. Written by history.py only.
+
+    Append-only, for auditing. The model refuses to save an existing row or
+    delete one, and a Postgres trigger (migration 0002) refuses UPDATE and
+    DELETE outright, so not even Database admin or a stray query can rewrite
+    it. That is also why neither foreign key has a database constraint or an
+    on_delete action: deleting a payment or an account must not touch these
+    rows. `payment_id` and `actor_id` stay as plain numbers, and the labels
+    and values copied in keep the entry readable on its own.
+    """
+
+    class Action(models.TextChoices):
+        CREATED = "created", "Recorded"
+        EDITED = "edited", "Edited"
+        DELETED = "deleted", "Deleted"
+
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        related_name="changes",
+    )
+    action = models.CharField(max_length=16, choices=Action.choices)
+    # Null only for changes made outside a request (none yet).
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        related_name="+",
+    )
+    actor_label = models.CharField(max_length=320)
+    # CREATED and DELETED: every field's value, as shown to people.
+    # EDITED: only the fields that changed, as {field: [before, after]}.
+    values = models.JSONField()
+    reason = models.CharField(max_length=320, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return f"Payment {self.payment_id} {self.get_action_display().lower()} by {self.actor_label}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Payment history can't be changed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Payment history can't be deleted.")
