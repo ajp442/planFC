@@ -47,6 +47,8 @@
             <a href="{% url 'profile' %}#notifications">Notifications</a>
             <a href="{% url 'account_email' %}">Email address</a>
             <a href="{% url 'account_change_password' %}">Password</a>
+            {# Needed for Database admin; any admin may turn it on. #}
+            {% if is_club_admin %}<a href="{% url 'mfa_index' %}">Two-factor authentication</a>{% endif %}
             <a href="{% url 'account_logout' %}">Sign out</a>
           </div>
         </details>

@@ -22,6 +22,7 @@ emails printed to `docker compose logs web`.
 | Name and profile picture | `/profile/` |
 | Not signing in every time | Sessions last 180 days from the last visit |
 | Push notifications in the PWA | Profile → Notifications, per device |
+| Two-factor authentication | Authenticator app plus recovery codes, at `/accounts/2fa/` (Account → Two-factor authentication, shown to admins). Required for superusers to open `/admin/`; see [ADMIN_GUIDE.md](ADMIN_GUIDE.md#two-factor-authentication) |
 
 Members can also change their password, reset a forgotten one, and change or
 add email addresses (each confirmed again). These are allauth's own pages,

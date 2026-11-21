@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block head_title %}Superusers only{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Superusers only</h1>
+  <p>
+    Database admin is for superusers, who edit the database directly. Everything
+    an admin needs is in the app's Admin menu. The superuser role can only be
+    given on the server's command line.
+  </p>
+  <p><a href="{% url 'index' %}">Back to the home page</a></p>
+</div>
+{% endblock %}

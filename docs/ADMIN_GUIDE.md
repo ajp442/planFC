@@ -4,9 +4,9 @@ How to add members, manage their accounts and decide who else is an admin.
 Everything here happens inside the app, on the **Members** page, with the same
 sign-in you use for everything else. There is no separate admin login.
 
-Two sections need a terminal on the server and are for whoever runs it:
-[the first admin](#the-first-admin) and [if no admin is left](#if-no-admin-is-left).
-The rest needs only a phone.
+Three sections need a terminal on the server and are for whoever runs it:
+[the first admin](#the-first-admin), [if no admin is left](#if-no-admin-is-left)
+and [superusers](#superusers-and-database-admin). The rest needs only a phone.
 
 For how the code works, see [ARCHITECTURE.md §3.6](ARCHITECTURE.md#36-accounts-accounts).
 For setting up email, Google and Apple sign-in, see [ACCOUNTS.md](ACCOUNTS.md).
@@ -22,33 +22,43 @@ For setting up email, Google and Apple sign-in, see [ACCOUNTS.md](ACCOUNTS.md).
 - [What admins can't do](#what-admins-cant-do)
 - [The record of changes](#the-record-of-changes)
 - [If no admin is left](#if-no-admin-is-left)
-- [Django's `/admin/`](#djangos-admin)
+- [Superusers and Database admin](#superusers-and-database-admin)
+  - [Two-factor authentication](#two-factor-authentication)
+  - [A lost phone](#a-lost-phone)
 - [Quick reference](#quick-reference)
 
 ---
 
 ## Roles
 
-There are two roles. Everyone with an account is a **member**. An **admin** is a
-member with extra powers; there is no limit on how many the club has.
+There are three roles. Everyone with an account is a **member**. An **admin** is a
+member with extra powers; there is no limit on how many the club has. A
+**superuser** is an admin who can also edit the database directly, in
+[Database admin](#superusers-and-database-admin). It is meant for whoever runs
+the server, and is given and taken away only on the server's command line.
 
-| | Member | Admin |
-|---|:---:|:---:|
-| Sign in, use the app | ✓ | ✓ |
-| Change their own name, picture, email address and password | ✓ | ✓ |
-| Turn notifications on and off for their own devices | ✓ | ✓ |
-| Delete their own account | ✓ | ✓ (not while they are the only admin) |
-| See the Members page and every member's account details | | ✓ |
-| Add members and send invitations | | ✓ |
-| Change another member's name, remove their picture | | ✓ |
-| Confirm a member's email address for them | | ✓ |
-| Deactivate and reactivate accounts | | ✓ |
-| Delete another member's account | | ✓ |
-| Make a member an admin, or remove another admin's role | | ✓ |
-| See the record of what admins have changed | | ✓ |
+| | Member | Admin | Superuser |
+|---|:---:|:---:|:---:|
+| Sign in, use the app | ✓ | ✓ | ✓ |
+| Change their own name, picture, email address and password | ✓ | ✓ | ✓ |
+| Turn notifications on and off for their own devices | ✓ | ✓ | ✓ |
+| Delete their own account | ✓ | ✓ (not while they are the only admin) | Not in the app: the role is removed on the server first |
+| See the Members page and every member's account details | | ✓ | ✓ |
+| Add members and send invitations | | ✓ | ✓ |
+| Change another member's name, remove their picture | | ✓ | ✓ |
+| Confirm a member's email address for them | | ✓ | ✓ |
+| Deactivate and reactivate accounts | | ✓ (not a superuser's) | ✓ (not a superuser's) |
+| Delete another member's account | | ✓ (not a superuser's) | ✓ (not a superuser's) |
+| Make a member an admin, or remove another admin's role | | ✓ | ✓ |
+| See the record of what admins have changed | | ✓ | ✓ |
+| Turn on two-factor authentication for their own account | | ✓ | Required |
+| Open Database admin (Django's `/admin/`) | | | ✓, with a code from their authenticator app |
+| Make someone a superuser, or remove the role | | | Nobody in the app: only on the server |
 
 Admins are equals: any admin can remove any other admin's role, or deactivate or
 delete their account. Give the role to people you would trust with that.
+Superusers are the exception: no one can change their role or account from
+inside the app ([details](#superusers-and-database-admin)).
 
 Later milestones (creating games, recording payments) will use the same role:
 whoever is an admin here will be an admin there.
@@ -71,7 +81,7 @@ first is made once, from a terminal on the server:
 
 Whoever runs the server will probably want database access too, which means
 being a **superuser**: `manage.py superuser you@example.com`. See
-[Django's `/admin/`](#djangos-admin).
+[Superusers and Database admin](#superusers-and-database-admin).
 
 From then on, make other admins in the app
 ([Making someone an admin](#making-someone-an-admin)).
@@ -93,7 +103,7 @@ bar to type into:
 | **Admins and roles** | The same list, showing only admins |
 | **Add a member** | The [invitation form](#adding-a-member) |
 | **Admin changes** | [The record of changes](#the-record-of-changes) |
-| **Database admin** | [Django's `/admin/`](#djangos-admin). Only shown to superusers |
+| **Database admin** | [Django's `/admin/`](#superusers-and-database-admin). Only shown to superusers |
 
 Members have no Admin section in their menu, and get an "Admins only" page if they type one of
 these addresses in. Admins also have a **Manage members** button on their
@@ -102,7 +112,7 @@ profile.
 The Members page lists every account, in order of first name, with the
 member's email address and two kinds of tag:
 
-- **Admin**, on admins.
+- **Admin**, on admins, or **Superuser**, on superusers.
 - The account's [status](#account-status), when it is anything other than active.
 
 **Everyone** and **Admins** at the top switch between all accounts and admins
@@ -235,6 +245,9 @@ first.
   Profile → Email address, where the new address is confirmed by email.
 - **Sign in as a member.**
 - **Change their own role, or deactivate themselves.**
+- **Change a superuser.** A superuser's page has no role, deactivate or delete
+  buttons. That role, and their access, is changed only on the server.
+- **Make anyone a superuser.** Only the server's command line can.
 - **Edit or delete the record of changes.**
 
 ## The record of changes
@@ -251,7 +264,9 @@ picture, and deleting an account.
 
 Entries keep the names and email addresses as they were at the time, so they
 still make sense after either account is gone. Changes made with `make_admin`
-on the server are recorded as made by "Command line". What members do to their
+or `superuser` on the server (including making or removing a superuser, and
+resetting someone's two-factor authentication) are recorded as made by
+"Command line". What members do to their
 own accounts is not recorded here.
 
 ## If no admin is left
@@ -273,30 +288,35 @@ docker compose exec web python manage.py make_admin someone@example.com --remove
 
 Both work on any existing account, by the email address it signs in with. If
 the account is deactivated, the command says so; reactivate it from another
-admin's Members page, or in [Django's `/admin/`](#djangos-admin).
+admin's Members page, or in [Django's `/admin/`](#superusers-and-database-admin).
 
-## Django's `/admin/`
+## Superusers and Database admin
 
-`/admin/` is a separate, technical tool for editing the database directly:
-every table, with none of the safeguards or the record of changes described
-above. Nothing in this guide needs it, and most admins should not have it.
+**Database admin** (Django's `/admin/`) is a separate, technical tool for
+editing the database directly: every table, with none of the safeguards or the
+record of changes described above. Nothing in this guide needs it, and most
+admins should not have it.
 
-Only **superusers** can open it. An ordinary admin who goes to `/admin/` gets
-its login page and can't get past it. Superuser is a third role, above admin,
-and it is set **only on the server's command line**, never in the app:
+Only **superusers** can open it, and only with
+[two-factor authentication](#two-factor-authentication). An ordinary admin
+who goes to `/admin/` gets a "Superusers only" page.
+
+The superuser role is given and taken away **only on the server's command
+line**, never in the app:
 
 ```sh
-docker compose exec web python manage.py superuser you@example.com           # make one
-docker compose exec web python manage.py superuser you@example.com --remove  # back to plain admin
-docker compose exec web python manage.py superuser --list                    # who has it
+docker compose exec web python manage.py superuser you@example.com             # make one
+docker compose exec web python manage.py superuser you@example.com --remove    # back to plain admin
+docker compose exec web python manage.py superuser --list                      # who has it, and who has no 2FA yet
+docker compose exec web python manage.py superuser you@example.com --reset-2fa # a lost phone
 ```
 
-Both changes are written to the [record of changes](#the-record-of-changes),
-as made from the "Command line".
+Each change is written to the [record of changes](#the-record-of-changes), as
+made from the "Command line".
 
 A superuser gets a **Database admin** item in the Admin section of their menu.
-It opens `/admin/` using the sign-in they already have, so there is no second
-login.
+It uses the sign-in they already have, plus a code from their phone. There is
+no separate username and password.
 
 How the roles fit together:
 
@@ -309,18 +329,68 @@ How the roles fit together:
 - To take everything away from a superuser, remove the superuser role first,
   then the admin role: `superuser <email> --remove`, then
   `make_admin <email> --remove`. `make_admin --remove` refuses a superuser.
-- An account made with `manage.py createsuperuser` is a superuser with a
-  username and no confirmed email address. It can sign in at `/admin/` with
-  that username, but not in the app until its address is confirmed. Signing up
-  normally and running `manage.py superuser` avoids that.
+- An account made with Django's `manage.py createsuperuser` has a username and
+  no confirmed email address. It can't open Database admin, which goes through
+  the app's own sign-in. Sign up normally and run `manage.py superuser`
+  instead.
+
+### Two-factor authentication
+
+Database admin asks for a 6-digit code from an **authenticator app** on the
+superuser's phone. Google Authenticator, Microsoft Authenticator, 1Password,
+Authy or any other app that scans a QR code will do. There are no text
+messages.
+
+**Setting it up**, the first time a superuser opens Database admin:
+
+1. Menu → Admin → **Database admin**. The app explains that two-factor
+   authentication is needed and asks for your password again.
+2. Scan the QR code with your authenticator app (or type in the secret shown
+   under it), then enter the 6-digit code the app shows.
+3. The app shows ten **recovery codes**. Download them or write them down, and
+   keep them somewhere other than your phone. Each one works once, in place of
+   a code from the app.
+4. Open **Database admin** again and enter a code from the app.
+
+**After that**, Database admin asks for a fresh code once every 12 hours.
+Signing in to the app with your password asks for a code too, once you have
+an authenticator app set up.
+
+Menu → Account → **Two-factor authentication** (shown to every admin) is where
+you see how many recovery codes are left, make new ones, or turn the app off.
+Turning it off locks you out of Database admin until you set it up again.
+
+Any admin can turn on two-factor authentication for their own account there.
+For admins it is optional; for Database admin it is required.
+
+### A lost phone
+
+Sign in and enter one of your **recovery codes** where the app asks for a
+code. Then go to Account → Two-factor authentication, turn the app off and set
+it up again on the new phone.
+
+Without the recovery codes either, whoever runs the server can reset it:
+
+```sh
+docker compose exec web python manage.py superuser you@example.com --reset-2fa
+```
+
+That deletes the authenticator app and recovery codes on the account. The
+superuser then signs in with their password alone and sets up a new app the
+next time they open Database admin. It works the same way for an admin who
+turned on two-factor authentication and lost their phone.
 
 ## Quick reference
 
 | I want to… | Do this |
 |---|---|
 | Make the very first admin | On the server: `docker compose exec web python manage.py make_admin you@example.com` |
-| Give someone database access (`/admin/`) | On the server: `docker compose exec web python manage.py superuser you@example.com` |
-| Take database access away | On the server: the same with `--remove` |
+| Make someone a superuser (Database admin) | On the server: `docker compose exec web python manage.py superuser you@example.com` |
+| Take the superuser role away | On the server: the same with `--remove` |
+| See who the superusers are | On the server: `docker compose exec web python manage.py superuser --list` |
+| Open Database admin | Menu → Admin → Database admin, then a code from your authenticator app |
+| Turn two-factor authentication on or off, or get new recovery codes | Menu → Account → Two-factor authentication |
+| Help someone who lost the phone with their authenticator app | Their recovery codes; otherwise, on the server: `superuser <email> --reset-2fa` |
 | Find any admin page | Menu (☰, top left) → **Admin** |
 | See who the admins are | Admin → Admins and roles |
 | Add someone | Admin → Add a member |

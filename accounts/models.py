@@ -90,6 +90,7 @@ class AdminAction(models.Model):
         # Only ever from the command line (`manage.py superuser`).
         MADE_SUPERUSER = "made_superuser", "Made a superuser"
         REMOVED_SUPERUSER = "removed_superuser", "Superuser role removed"
+        TWO_FACTOR_RESET = "two_factor_reset", "Two-factor authentication reset"
         DEACTIVATED = "deactivated", "Deactivated"
         REACTIVATED = "reactivated", "Reactivated"
         EMAIL_CONFIRMED = "email_confirmed", "Email marked as confirmed"
