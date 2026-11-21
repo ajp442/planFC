@@ -71,6 +71,15 @@ def profile_picture(request, user_id):
 # phone someone else has picked up.
 @reauthentication_required
 def delete_account(request):
+    # The superuser role goes first, on the command line, like any other
+    # change to it.
+    if members.is_protected(request.user):
+        messages.error(
+            request,
+            "You are a superuser. Your superuser role has to be removed on the server "
+            "(manage.py superuser --remove) before you can delete your account.",
+        )
+        return redirect("profile")
     # Someone has to be left who can manage members from inside the app.
     if members.is_only_admin(request.user):
         messages.error(

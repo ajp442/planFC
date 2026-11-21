@@ -69,8 +69,9 @@ first is made once, from a terminal on the server:
 3. Reload the app and open the menu (the three bars beside **planFC**, top
    left). It now has an **Admin** section.
 
-Whoever runs the server will probably want database access too. Add
-`--superuser` to the command for that; see [Django's `/admin/`](#djangos-admin).
+Whoever runs the server will probably want database access too, which means
+being a **superuser**: `manage.py superuser you@example.com`. See
+[Django's `/admin/`](#djangos-admin).
 
 From then on, make other admins in the app
 ([Making someone an admin](#making-someone-an-admin)).
@@ -92,7 +93,7 @@ bar to type into:
 | **Admins and roles** | The same list, showing only admins |
 | **Add a member** | The [invitation form](#adding-a-member) |
 | **Admin changes** | [The record of changes](#the-record-of-changes) |
-| **Database admin** | [Django's `/admin/`](#djangos-admin). Only shown to the few admins who have database access |
+| **Database admin** | [Django's `/admin/`](#djangos-admin). Only shown to superusers |
 
 Members have no Admin section in their menu, and get an "Admins only" page if they type one of
 these addresses in. Admins also have a **Manage members** button on their
@@ -280,35 +281,46 @@ admin's Members page, or in [Django's `/admin/`](#djangos-admin).
 every table, with none of the safeguards or the record of changes described
 above. Nothing in this guide needs it, and most admins should not have it.
 
-An admin has it only if their account is also a **superuser**. That can't be
-granted in the app, only from the server:
+Only **superusers** can open it. An ordinary admin who goes to `/admin/` gets
+its login page and can't get past it. Superuser is a third role, above admin,
+and it is set **only on the server's command line**, never in the app:
 
 ```sh
-docker compose exec web python manage.py make_admin you@example.com --superuser
+docker compose exec web python manage.py superuser you@example.com           # make one
+docker compose exec web python manage.py superuser you@example.com --remove  # back to plain admin
+docker compose exec web python manage.py superuser --list                    # who has it
 ```
 
-Such an admin gets a **Database admin** item in the Admin section of their menu. It opens
-`/admin/` using the sign-in they already have, so there is no second login.
+Both changes are written to the [record of changes](#the-record-of-changes),
+as made from the "Command line".
 
-How the two fit together:
+A superuser gets a **Database admin** item in the Admin section of their menu.
+It opens `/admin/` using the sign-in they already have, so there is no second
+login.
 
-- An admin made in the app has Django's **staff** flag, which is what "admin"
-  means to the app. Staff alone has no Database admin item, and would find
-  `/admin/` empty.
+How the roles fit together:
+
 - A superuser is always an admin in the app as well.
-- Removing the admin role, in the app or with `make_admin --remove`, clears
-  both flags, so it takes database access away too.
+- No admin can change a superuser in the app: their page has no role,
+  deactivate or delete buttons, and says so. Not even another superuser can,
+  in `/admin/`: "Superuser status" is read-only there, and a superuser's
+  account can't be deactivated, demoted or deleted from it. A superuser can't
+  delete their own account in the app either until the role is removed.
+- To take everything away from a superuser, remove the superuser role first,
+  then the admin role: `superuser <email> --remove`, then
+  `make_admin <email> --remove`. `make_admin --remove` refuses a superuser.
 - An account made with `manage.py createsuperuser` is a superuser with a
   username and no confirmed email address. It can sign in at `/admin/` with
   that username, but not in the app until its address is confirmed. Signing up
-  normally and running `make_admin --superuser` avoids that.
+  normally and running `manage.py superuser` avoids that.
 
 ## Quick reference
 
 | I want to… | Do this |
 |---|---|
 | Make the very first admin | On the server: `docker compose exec web python manage.py make_admin you@example.com` |
-| Give an admin database access (`/admin/`) | On the server: the same command with `--superuser` |
+| Give someone database access (`/admin/`) | On the server: `docker compose exec web python manage.py superuser you@example.com` |
+| Take database access away | On the server: the same with `--remove` |
 | Find any admin page | Menu (☰, top left) → **Admin** |
 | See who the admins are | Admin → Admins and roles |
 | Add someone | Admin → Add a member |

@@ -87,6 +87,9 @@ class AdminAction(models.Model):
         INVITE_RESENT = "invite_resent", "Invitation sent again"
         MADE_ADMIN = "made_admin", "Made an admin"
         REMOVED_ADMIN = "removed_admin", "Admin role removed"
+        # Only ever from the command line (`manage.py superuser`).
+        MADE_SUPERUSER = "made_superuser", "Made a superuser"
+        REMOVED_SUPERUSER = "removed_superuser", "Superuser role removed"
         DEACTIVATED = "deactivated", "Deactivated"
         REACTIVATED = "reactivated", "Reactivated"
         EMAIL_CONFIRMED = "email_confirmed", "Email marked as confirmed"
@@ -94,8 +97,8 @@ class AdminAction(models.Model):
         PICTURE_REMOVED = "picture_removed", "Profile picture removed"
         DELETED = "deleted", "Account deleted"
 
-    # Null for changes made with `manage.py make_admin`, and after the
-    # admin's own account is deleted.
+    # Null for changes made on the command line (`make_admin`, `superuser`),
+    # and after the admin's own account is deleted.
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

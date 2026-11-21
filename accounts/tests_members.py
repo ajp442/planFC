@@ -21,6 +21,13 @@ User = get_user_model()
 Action = AdminAction.Action
 
 
+def make_superuser(email="root@example.com", first_name="Root", last_name="User"):
+    user = make_member(email=email, first_name=first_name, last_name=last_name)
+    user.is_staff = user.is_superuser = True
+    user.save(update_fields=["is_staff", "is_superuser"])
+    return user
+
+
 def make_admin(email="ada@example.com", first_name="Ada", last_name="Admin"):
     user = make_member(email=email, first_name=first_name, last_name=last_name)
     user.is_staff = True
@@ -194,7 +201,7 @@ class AdminMenuTests(AdminTestCase):
         self.assertNotIn("/admin/", self.menu(self.client.get(reverse("index"))))
 
         root = make_member(email="root@example.com", first_name="Root")
-        call_command("make_admin", "root@example.com", "--superuser", stdout=StringIO())
+        call_command("superuser", "root@example.com", stdout=StringIO())
         self.client.force_login(root)
         self.assertIn('href="/admin/"', self.menu(self.client.get(reverse("index"))))
         # The app's session is enough: no second sign-in at /admin/.
@@ -379,12 +386,30 @@ class ManageTests(AdminTestCase):
         self.assertFalse(members.is_admin(self.member))
         self.assertEqual(self.actions(), [Action.MADE_ADMIN, Action.REMOVED_ADMIN])
 
-    def test_removing_the_role_from_a_superuser_removes_that_too(self):
-        root = User.objects.create_superuser(username="root", email="root@example.com", password=PASSWORD)
+    def test_an_admin_cannot_touch_a_superuser(self):
+        root = make_superuser()
         self.reauthenticate()
-        self.client.post(reverse("member_role", args=[root.pk]))
+        detail = self.client.get(reverse("member_detail", args=[root.pk]))
+        self.assertContains(detail, "Superuser")
+        self.assertNotContains(detail, "Remove the admin role")
+        self.assertNotContains(detail, "Deactivate")
+        self.assertNotContains(detail, "Delete this account")
+
+        response = self.client.post(reverse("member_role", args=[root.pk]), follow=True)
+        self.assertContains(response, "can only be changed on the server")
+        self.act("deactivate", root)
+        self.client.post(reverse("member_delete", args=[root.pk]))
         root.refresh_from_db()
-        self.assertFalse(root.is_staff or root.is_superuser)
+        self.assertTrue(root.is_superuser and root.is_staff and root.is_active)
+        self.assertEqual(self.actions(), [])
+
+    def test_a_superuser_cannot_delete_their_own_account_in_the_app(self):
+        root = self.admin = make_superuser()
+        self.client.logout()
+        self.reauthenticate()
+        response = self.client.post(reverse("delete_account"), follow=True)
+        self.assertContains(response, "You are a superuser")
+        self.assertTrue(User.objects.filter(pk=root.pk).exists())
 
     def test_an_admin_cannot_change_their_own_role(self):
         self.reauthenticate()
@@ -506,20 +531,109 @@ class MakeAdminCommandTests(TestCase):
         entry = AdminAction.objects.get()
         self.assertEqual((entry.action, entry.actor, entry.actor_label), (Action.MADE_ADMIN, None, "Command line"))
 
-    def test_superuser_also_grants_database_access(self):
-        member = make_member()
-        self.assertIn("with database access at /admin/", self.run_command("sam@example.com", "--superuser"))
-        member.refresh_from_db()
-        self.assertTrue(member.is_staff and member.is_superuser)
-        with self.assertRaises(CommandError):
-            self.run_command("sam@example.com", "--remove", "--superuser")
-
     def test_remove_takes_the_role_away(self):
-        root = User.objects.create_superuser(username="root", email="root@example.com", password=PASSWORD)
-        self.run_command("root@example.com", "--remove")
+        admin = make_admin()
+        self.run_command("ada@example.com", "--remove")
+        admin.refresh_from_db()
+        self.assertFalse(members.is_admin(admin))
+
+    def test_remove_refuses_a_superuser(self):
+        root = make_superuser()
+        with self.assertRaisesMessage(CommandError, "superuser root@example.com --remove"):
+            self.run_command("root@example.com", "--remove")
         root.refresh_from_db()
-        self.assertFalse(members.is_admin(root))
+        self.assertTrue(root.is_superuser and root.is_staff)
+
+    def test_has_no_superuser_option(self):
+        make_member()
+        with self.assertRaises(CommandError):
+            self.run_command("sam@example.com", "--superuser")
 
     def test_an_unknown_address_is_an_error(self):
         with self.assertRaisesMessage(CommandError, "No account uses nobody@example.com"):
             self.run_command("nobody@example.com")
+
+
+class SuperuserCommandTests(TestCase):
+    def run_command(self, *args):
+        out = StringIO()
+        call_command("superuser", *args, stdout=out, stderr=StringIO())
+        return out.getvalue()
+
+    def test_grants_and_removes_the_role(self):
+        member = make_member()
+        self.assertIn("is now a superuser", self.run_command("SAM@example.com"))
+        member.refresh_from_db()
+        self.assertTrue(member.is_superuser and member.is_staff)
+
+        self.assertIn("still an admin", self.run_command("sam@example.com", "--remove"))
+        member.refresh_from_db()
+        self.assertFalse(member.is_superuser)
+        self.assertTrue(members.is_admin(member))
+
+        self.assertEqual(
+            [(e.action, e.actor, e.actor_label) for e in AdminAction.objects.order_by("pk")],
+            [(Action.MADE_SUPERUSER, None, "Command line"), (Action.REMOVED_SUPERUSER, None, "Command line")],
+        )
+
+    def test_repeating_changes_nothing(self):
+        make_superuser()
+        self.assertIn("already a superuser", self.run_command("root@example.com"))
+        make_member()
+        self.assertIn("not a superuser", self.run_command("sam@example.com", "--remove"))
+        self.assertFalse(AdminAction.objects.exists())
+
+    def test_list(self):
+        self.assertIn("There are no superusers.", self.run_command("--list"))
+        make_superuser()
+        self.assertIn("Root User <root@example.com>", self.run_command("--list"))
+
+    def test_an_unknown_address_is_an_error(self):
+        with self.assertRaisesMessage(CommandError, "No account uses nobody@example.com"):
+            self.run_command("nobody@example.com")
+
+
+class DatabaseAdminTests(TestCase):
+    """Django's /admin/: superusers only, and no way to change the superuser
+    role from inside it."""
+
+    def test_an_admin_is_shown_the_login_page(self):
+        self.client.force_login(make_admin())
+        response = self.client.get(reverse("admin:index"))
+        self.assertRedirects(response, f"{reverse('admin:login')}?next={reverse('admin:index')}",
+                             fetch_redirect_response=False)
+        self.assertNotContains(self.client.get(reverse("member_list")), "Database admin")
+
+    def test_an_admin_cannot_sign_in_there_either(self):
+        admin = make_admin()
+        self.client.post(reverse("admin:login"), {"username": admin.username, "password": PASSWORD})
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 302)
+
+    def test_a_superuser_gets_in(self):
+        root = make_superuser()
+        self.client.force_login(root)
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+        self.assertContains(self.client.get(reverse("profile")), "Database admin")
+
+    def test_the_superuser_role_cannot_be_changed_there(self):
+        root = make_superuser()
+        other = make_superuser(email="bo@example.com", first_name="Bo")
+        member = make_member()
+        self.client.force_login(root)
+
+        url = reverse("admin:auth_user_change", args=[member.pk])
+        form = self.client.get(url).context["adminform"].form
+        self.assertNotIn("is_superuser", form.fields)
+        data = {k: v for k, v in form.initial.items() if v is not None and k in form.fields}
+        data.update(is_superuser="on", is_staff="on", is_active="on",
+                    date_joined_0="2026-01-01", date_joined_1="00:00:00")
+        self.client.post(url, data)
+        member.refresh_from_db()
+        self.assertFalse(member.is_superuser)
+
+        other_form = self.client.get(reverse("admin:auth_user_change", args=[other.pk])).context["adminform"].form
+        self.assertNotIn("is_active", other_form.fields)
+        self.assertNotIn("is_staff", other_form.fields)
+        response = self.client.post(reverse("admin:auth_user_delete", args=[other.pk]), {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=other.pk).exists())

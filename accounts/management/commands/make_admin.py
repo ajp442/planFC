@@ -19,15 +19,8 @@ class Command(BaseCommand):
             "--remove", action="store_true",
             help="Take the admin role away instead of granting it.",
         )
-        parser.add_argument(
-            "--superuser", action="store_true",
-            help="Also let them edit the database directly in Django's /admin/, "
-                 "which adds a Database admin item to their Admin menu.",
-        )
 
-    def handle(self, *args, email, remove, superuser, **options):
-        if remove and superuser:
-            raise CommandError("--remove already takes away everything; don't combine it with --superuser.")
+    def handle(self, *args, email, remove, **options):
         User = get_user_model()
         users = User.objects.filter(
             Q(email__iexact=email) | Q(emailaddress__email__iexact=email)
@@ -39,22 +32,21 @@ class Command(BaseCommand):
         if len(users) > 1:
             raise CommandError(f"{len(users)} accounts use {email}; fix that in /admin/ first.")
         user = users[0]
+        if remove and user.is_superuser:
+            # The superuser role is changed with its own command, so that
+            # taking it away is always a deliberate step.
+            raise CommandError(
+                f"{members.label(user)} is a superuser. Run `manage.py superuser {email} --remove` first."
+            )
 
         members.set_admin(user, not remove)
-        if superuser:
-            user.is_superuser = True
-            user.save(update_fields=["is_superuser"])
         members.record(
             None, user,
             AdminAction.Action.REMOVED_ADMIN if remove else AdminAction.Action.MADE_ADMIN,
-            detail="With database access (/admin/)" if superuser else "",
         )
         if remove:
             self.stdout.write(f"{members.label(user)} is no longer an admin.")
         else:
-            self.stdout.write(
-                f"{members.label(user)} is now an admin"
-                + (", with database access at /admin/." if superuser else ".")
-            )
+            self.stdout.write(f"{members.label(user)} is now an admin.")
             if not user.is_active:
                 self.stderr.write("Their account is deactivated, so they can't sign in until it is reactivated.")
