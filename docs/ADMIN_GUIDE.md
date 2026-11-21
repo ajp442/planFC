@@ -22,6 +22,7 @@ For setting up email, Google and Apple sign-in, see [ACCOUNTS.md](ACCOUNTS.md).
 - [What admins can't do](#what-admins-cant-do)
 - [The record of changes](#the-record-of-changes)
 - [If no admin is left](#if-no-admin-is-left)
+- [Recording payments (superusers)](#recording-payments-superusers)
 - [Superusers and Database admin](#superusers-and-database-admin)
   - [Two-factor authentication](#two-factor-authentication)
   - [A lost phone](#a-lost-phone)
@@ -52,6 +53,7 @@ the server, and is given and taken away only on the server's command line.
 | Make a member an admin, or remove another admin's role | | ✓ | ✓ |
 | See the record of what admins have changed | | ✓ | ✓ |
 | Turn on two-factor authentication for their own account | | ✓ | Required |
+| Record payments and see every payment recorded | | | ✓ |
 | Open Database admin (Django's `/admin/`) | | | ✓, with a code from their authenticator app |
 | Make someone a superuser, or remove the role | | | Nobody in the app: only on the server |
 
@@ -60,8 +62,9 @@ delete their account. Give the role to people you would trust with that.
 Superusers are the exception: no one can change their role or account from
 inside the app ([details](#superusers-and-database-admin)).
 
-Later milestones (creating games, recording payments) will use the same role:
-whoever is an admin here will be an admin there.
+Later milestones (creating games) will use the same role: whoever is an admin
+here will be an admin there. Recording payments is the exception: for now it is
+for superusers only ([details](#recording-payments-superusers)).
 
 ## The first admin
 
@@ -290,12 +293,44 @@ Both work on any existing account, by the email address it signs in with. If
 the account is deactivated, the command says so; reactivate it from another
 admin's Members page, or in [Django's `/admin/`](#superusers-and-database-admin).
 
+## Recording payments (superusers)
+
+Members pay by PayPal, Venmo, Zelle or cash as they already do, and a
+superuser writes each payment down in the app. Nothing is charged through the
+app. Open **Menu → Payments → Record a payment**; ordinary admins don't see it.
+
+Fill in, top to bottom:
+
+1. **Who paid.** Start typing any part of their name or email, and pick them
+   from the list (tap, or arrow keys and Enter). Typing someone's full name
+   exactly links them too. The line under the box says which account the
+   payment will go to. If nobody matches, keep typing the name: the payment is
+   recorded under that name and shown as **No account**. Use the name you'll
+   recognise later, since these will be linked to accounts in a later version.
+2. **Amount** in dollars, e.g. `12` or `24.50`.
+3. **Date paid**: today unless you change it. Use the day the money arrived,
+   not the day you're entering it. The app keeps that separately anyway.
+4. **Method**: PayPal, Venmo, Zelle, Cash or Other.
+5. **Note**, optional: "paid for Sam too", "donation", a check number.
+
+Then **Record the payment**. A green line confirms what was saved, and the
+form is ready for the next one. The latest 100 payments are listed below it,
+each with who recorded it and when.
+
+Unlike Database admin, this page never asks for a code from your
+authenticator app: your normal sign-in is enough. The superuser role itself
+is the safeguard, since it can only be given on the server.
+
+**A mistake?** Payments can't be edited, so an amount can never change
+without a trace. Delete the wrong one in Database admin → Payments (with your
+2FA code), then record it again correctly.
+
 ## Superusers and Database admin
 
 **Database admin** (Django's `/admin/`) is a separate, technical tool for
 editing the database directly: every table, with none of the safeguards or the
-record of changes described above. Nothing in this guide needs it, and most
-admins should not have it.
+record of changes described above. Nothing in this guide needs it except
+fixing a mistaken payment, and most admins should not have it.
 
 Only **superusers** can open it, and only with
 [two-factor authentication](#two-factor-authentication). An ordinary admin
@@ -388,6 +423,8 @@ turned on two-factor authentication and lost their phone.
 | Make someone a superuser (Database admin) | On the server: `docker compose exec web python manage.py superuser you@example.com` |
 | Take the superuser role away | On the server: the same with `--remove` |
 | See who the superusers are | On the server: `docker compose exec web python manage.py superuser --list` |
+| Record a payment (superusers) | Menu → Payments → Record a payment |
+| Fix a payment entered wrong (superusers) | Database admin → Payments: delete it, then record it again |
 | Open Database admin | Menu → Admin → Database admin, then a code from your authenticator app |
 | Turn two-factor authentication on or off, or get new recovery codes | Menu → Account → Two-factor authentication |
 | Help someone who lost the phone with their authenticator app | Their recovery codes; otherwise, on the server: `superuser <email> --reset-2fa` |

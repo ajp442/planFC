@@ -16,7 +16,7 @@ class PrivatePagesMiddleware:
     A view that sets its own Cache-Control (a profile picture, say) keeps it.
     """
 
-    PRIVATE_PREFIXES = ("/accounts/", "/profile/", "/push/", "/admin/", "/members/", "/invite/")
+    PRIVATE_PREFIXES = ("/accounts/", "/profile/", "/push/", "/admin/", "/members/", "/invite/", "/payments/")
 
     def __init__(self, get_response):
         self.get_response = get_response

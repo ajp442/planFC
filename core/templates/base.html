@@ -58,6 +58,15 @@ screen, so a change needs the icon removed and added again.
             <a href="{% url 'account_logout' %}">Sign out</a>
           </div>
         </details>
+        {% if user.is_superuser and user.is_active %}
+          {# Superusers only for now; members' own payment history comes later. #}
+          <details class="submenu" id="payments_menu">
+            <summary>Payments</summary>
+            <div class="submenu-items">
+              <a href="{% url 'payments' %}">Record a payment</a>
+            </div>
+          </details>
+        {% endif %}
         {% if is_club_admin %}
           <details class="submenu" id="admin_menu">
             <summary>Admin</summary>

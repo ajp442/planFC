@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     # Before allauth, so its templates override allauth's (the layout, the
     # form elements and the logout page).
     "accounts",
+    # The ledger: payments recorded by superusers.
+    "payments",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

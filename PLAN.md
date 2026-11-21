@@ -1,6 +1,6 @@
 # planFC — Plan
 
-**Status:** draft | Last updated: 2026-09-22
+**Status:** draft | Last updated: 2026-11-20
 
 planFC is a play on words: "FC" stands for Football Club, and "plan" describes what this app helps us do; it helps our Football Club plan pickup games.
 
@@ -34,7 +34,7 @@ A fully integrated one-stop-shop solution would be ideal and would include the f
 - Admins can manually add/remove games
 - Admins can update costs on a game/game basis if needed.
 - Admins can add reoccurring games, this is useful since all the games are usually same time, place, cost, and location.
-- Admins can manually add Users payments.
+- Admins can manually add Users payments. (The first version limits this to superusers; see Payments.)
 - Admins can manually track expenses: field rentals, Jersey's, game ball, Website maintenance, etc...
 - Everything like payments, signups, manual editions, comments, etc... would require a non-editable internal timestamp for when data was
   entered into the system.
@@ -149,6 +149,35 @@ Each milestone should be complete and well vetted before moving onto the next mi
     the same manual path already agreed for cash. No fees, and Payments stops blocking the ledger.
   - A "Pay with Venmo" link can prefill the amount and note, but confirmation is still a human
     marking it received. Neither Venmo nor Zelle exposes an API for personal transfers.
+- **Manual payment entry (first version, built 2026-11-20).** A superuser records each payment
+  by hand on one page, Menu → Payments → Record a payment (`/payments/`). The fields, in order:
+  1. **Who paid.** A text box that suggests existing members as you type, matching any part of
+     their name or email ("ann" finds Ann Smith, Annie Jones and Mark Annandale; "smi ann" only
+     Ann Smith). Picking a suggestion, or typing a member's full name exactly, links the payment
+     to that account. If nobody matches, the payment is still recorded under the name as typed
+     and shown as "No account". Tracking payments without hassle matters more than linking.
+  2. **Amount** in dollars, more than zero, to the cent. Stored as `Decimal`, never a float, and
+     the database itself refuses zero or negative amounts.
+  3. **Date paid**, today by default (club time, America/Chicago). Earlier dates are fine,
+     future ones are refused.
+  4. **Method**: PayPal, Venmo, Zelle, Cash or Other, one tap each.
+  5. **Note**: optional free text (paying for a friend, a donation, a check number).
+  - Each payment also keeps who recorded it and a creation timestamp nobody can edit, separate
+    from the date paid. Names are copied onto the row, so it still reads properly after an
+    account is deleted. The payment survives that, unlinked.
+  - Only **superusers** can record or see payments. The role is granted only on the server's
+    command line, which is the safeguard. Unlike Database admin, the page asks for no fresh
+    two-factor code every 12 hours, so entering payments stays quick on a phone.
+  - The page lists the latest 100 payments under the form, so a run of payments can be entered
+    and checked in one place.
+  - Payments can't be edited. A mistaken entry can be deleted in Database admin (with 2FA) and
+    entered again. Nothing else can change one, so nobody can silently alter an amount.
+- **Next for manual payments**, not built yet:
+  - Link "No account" payments to an account once the person signs up or is found.
+  - A correction trail: void or adjust a payment with a reason instead of deleting it.
+  - Members see their own payment history and balance. This needs games and their costs, so it
+    belongs with the ledger.
+  - Admins (not only superusers) recording payments, if superusers become a bottleneck.
 - Card processing, when we add it, means Stripe.
   - Fees run about 2.9% + 30c everywhere. The flat 30c is what hurts at our size: 65c on a $12 game
     is an effective 5.4%, against 3.4% on a $60 five-game top-up and 0.8% by ACH direct debit
@@ -177,8 +206,6 @@ When a question is answered, it will be deleted from here and incorporated into 
     Details must be documented in a Rules/Payments section of the website with specific examples.
     **Note:** default behavior is to keep as a credit on the account. at some point we will have to consider credit on
     accounts as donations to the group.
-- How do we handle cash payments?
-  - This will be a manual process. electronic payment is preferred, but admins must be able to accept cash and document in the app.
 - Will we support bringing a guest who does not have an account?
 
 

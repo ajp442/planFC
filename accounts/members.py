@@ -62,6 +62,26 @@ def admin_required(view):
     return wrapper
 
 
+def superuser_required(view):
+    """For the club's money (payments/). Like admin_required, but only an
+    active superuser gets through.
+
+    Unlike Database admin (admin_site.py), it asks for no recent two-factor
+    code: payments are entered often, from a phone, and the role itself can
+    only be given on the server's command line, so no admin, or stolen
+    admin session, can grant it."""
+
+    @wraps(view)
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        user = request.user
+        if not (user.is_active and user.is_superuser):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
 def is_only_admin(user):
     if not is_admin(user):
         return False

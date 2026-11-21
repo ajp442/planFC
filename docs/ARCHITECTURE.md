@@ -23,6 +23,7 @@ an existing file don't need an update.
   - [3.4 Models and migrations](#34-models-and-migrations)
   - [3.5 Tests (`core/tests.py`)](#35-tests-coretestspy)
   - [3.6 Accounts (`accounts/`)](#36-accounts-accounts)
+  - [3.7 Payments (`payments/`)](#37-payments-payments)
 - [4. The client side (PWA)](#4-the-client-side-pwa)
   - [4.1 The page (`core/templates/core/index.html`)](#41-the-page-coretemplatescoreindexhtml)
   - [4.2 The manifest (`core/templates/pwa/manifest.webmanifest`)](#42-the-manifest-coretemplatespwamanifestwebmanifest)
@@ -125,10 +126,16 @@ there speculatively.
 │   ├── tests.py, tests_members.py
 │   ├── management/commands/   generate_vapid_keys, make_admin
 │   └── templates/          profile and members pages, plus overrides of allauth's
+├── payments/               Payments recorded by hand, superusers only (§3.7)
+│   ├── models.py           Payment
+│   ├── forms.py, views.py, urls.py   /payments/
+│   ├── admin.py            view and delete in Database admin, never edit
+│   └── tests.py
 ├── static/                 Authored static assets (source for collectstatic)
 │   ├── css/app.css
 │   ├── js/app.js           SW registration, install button, status, sign-out
 │   ├── js/profile.js       turning push on and off for a device
+│   ├── js/payments.js      "Who paid" suggestions on the payments page
 │   └── icons/*.png         placeholder icons
 ├── tools/make_icons.py     Generates the placeholder icons (Pillow)
 ├── manage.py
@@ -143,8 +150,8 @@ there speculatively.
 
 Django convention splits the *project* (`config/`, which holds settings and wiring)
 from *apps* (`core/`, `accounts/`, which hold features). Future milestones should
-add new apps next to them rather than growing `core`. The likely ones are `games`
-and `ledger`, which map onto the PLAN.md milestones.
+add new apps next to them rather than growing `core`. `payments` is the first;
+`games` is the likely next one, mapping onto the PLAN.md milestones.
 
 ---
 
@@ -241,8 +248,9 @@ to running databases. allauth adds `EmailAddress` (with its verified flag) and
 `SocialAccount`. `accounts` adds `ProfilePicture` and `PushSubscription` (§3.6).
 `core` has no models.
 
-When the ledger arrives, keep to the constraint PLAN.md sets: money is
-`DecimalField`, never float, and records carry non-editable creation timestamps.
+`payments` adds `Payment` (§3.7). It keeps to the constraint PLAN.md sets for
+the ledger, as later money tables must: money is `DecimalField`, never float,
+and records carry non-editable creation timestamps.
 
 ### 3.5 Tests (`core/tests.py`)
 
@@ -399,6 +407,37 @@ Microsoft, which wakes `sw.js`. Its `push` handler shows the notification, and
 `notificationclick` focuses or opens the app at the message's URL (same origin
 only). On sign-out, `app.js` unsubscribes the device first, so a shared phone
 doesn't keep receiving the previous member's notifications.
+
+### 3.7 Payments (`payments/`)
+
+The first version of Payments in PLAN.md: payments received by PayPal, Venmo,
+Zelle or cash, recorded by hand. Nothing is processed.
+
+- **`Payment`** holds `member` (nullable FK, `SET_NULL`), `payer_name`,
+  `amount` (`DecimalField(8, 2)`, with a database check that it is above zero),
+  `paid_on`, `method` (`paypal`, `venmo`, `zelle`, `cash`, `other`), `note`,
+  `recorded_by` / `recorded_by_label` and `created_at` (`auto_now_add`).
+  `member` is null for someone without an account, and the row keeps the typed
+  name. Linking it later only has to fill in the FK. As with `AdminAction`,
+  the labels copy names so a row outlives the accounts it mentions.
+- **Access** is `members.superuser_required`: an active superuser, with no
+  recent-2FA check. The role can only be granted with `manage.py superuser`,
+  which is what protects the page. `/payments/` is in
+  `PrivatePagesMiddleware`'s prefixes, so it is always `no-store`.
+- **One page** (`views.payments`) has the form and the latest 100 payments.
+  A successful POST redirects back (post/redirect/get), so a reload can't
+  record twice. The form defaults `paid_on` to `timezone.localdate()` and
+  refuses future dates. A linked payment stores the account's display name,
+  not the typed fragment.
+- **Suggestions**: the view embeds every account (id, name, email, active) with
+  `json_script`, and `static/js/payments.js` filters it on each keystroke.
+  Every typed word must be a substring of the name or email. Picking a
+  suggestion, or typing a full name that matches exactly one member, sets the
+  hidden `member` field, and any other edit clears it. At hundreds of accounts
+  this is a few kilobytes and needs no search endpoint. Without JavaScript the
+  box is plain text and every payment is recorded unlinked.
+- **No editing.** `PaymentAdmin` disallows add and change. Delete is the
+  escape hatch for a mistaken entry, behind Database admin's 2FA.
 
 ---
 

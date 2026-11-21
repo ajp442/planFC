@@ -246,7 +246,8 @@ form p { margin: 0 0 16px; }
 
 label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9375rem; }
 
-input[type=text], input[type=email], input[type=password], input[type=file], textarea, select {
+input[type=text], input[type=email], input[type=password], input[type=file],
+input[type=number], input[type=date], textarea, select {
   display: block;
   width: 100%;
   padding: 12px;
@@ -429,3 +430,69 @@ form.follow { margin-top: 10px; }
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Payments -------------------------------------------------------------- */
+
+/* iOS gives an empty date field no height of its own. */
+input[type=date] { min-height: 48px; -webkit-appearance: none; appearance: none; }
+
+.field { margin: 0 0 16px; }
+
+/* "Who paid": a text box with its suggestions floating below it. */
+.combo { position: relative; }
+
+form .combo ul.suggestions {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  margin: 4px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  list-style: none;
+}
+
+.suggestions li { padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+.suggestions li[aria-selected=true], .suggestions li[role=option]:hover { background: var(--bg); }
+.suggestions .suggestion-more { color: var(--muted); font-size: 0.8125rem; cursor: default; }
+/* `form span` is styled as help text; these are not. */
+form .suggestions span { display: block; margin: 0; }
+form .suggestions .suggestion-name { color: var(--text); font-size: 1rem; font-weight: 600; }
+form .suggestions .suggestion-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Method: one tap on a pill instead of a dropdown. */
+fieldset.choices { margin: 0 0 16px; padding: 0; border: 0; }
+fieldset.choices legend { margin-bottom: 6px; padding: 0; font-weight: 600; font-size: 0.9375rem; }
+.choice-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.choice {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--field);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The radio itself stays in the page for keyboards and screen readers. */
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+form .choice span { display: inline; margin: 0; color: inherit; font-size: 0.9375rem; }
+.choice:has(input:checked) { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+.choice:has(input:focus-visible) { outline: 2px solid var(--pitch); outline-offset: 2px; }
+
+.payment-line { display: flex; justify-content: space-between; gap: 12px; }
+.payment-name { min-width: 0; overflow-wrap: anywhere; }
+.payment-amount { flex: none; font-variant-numeric: tabular-nums; }
+.payment-note { margin: 4px 0; overflow-wrap: anywhere; }
+.payment-list .pill { display: inline-block; margin-left: 6px; }
+.pill-unlinked { border-color: var(--dev); color: var(--dev); }
+.small { font-size: 0.8125rem; }

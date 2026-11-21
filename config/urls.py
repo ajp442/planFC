@@ -12,6 +12,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # Ours: profile, picture, account deletion, push subscriptions.
     path("", include("accounts.urls")),
+    # Recording payments, superusers only.
+    path("", include("payments.urls")),
     path("", views.index, name="index"),
     path("healthz", views.healthz, name="healthz"),
     # What the service worker shows offline in place of a page it may not

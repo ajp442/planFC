@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+{% block head_title %}Payments{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Record a payment</h1>
+  <p class="muted">Pick a member as you type. If nobody matches, the payment is kept under the name you typed.</p>
+
+  <form method="post" class="stack" id="payment_form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.member }}
+
+    <div class="field combo">
+      <label for="{{ form.payer_name.id_for_label }}">{{ form.payer_name.label }}</label>
+      {{ form.payer_name }}
+      <ul class="suggestions" id="payer_suggestions" role="listbox" aria-label="Members" hidden></ul>
+      <span class="helptext" id="payer_status" aria-live="polite"></span>
+      {{ form.payer_name.errors }}
+      {{ form.member.errors }}
+    </div>
+
+    <div class="field-row">
+      <p>
+        <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+        {{ form.amount }}
+        {{ form.amount.errors }}
+      </p>
+      <p>
+        <label for="{{ form.paid_on.id_for_label }}">{{ form.paid_on.label }}</label>
+        {{ form.paid_on }}
+        {{ form.paid_on.errors }}
+      </p>
+    </div>
+
+    <fieldset class="choices">
+      <legend>{{ form.method.label }}</legend>
+      <div class="choice-pills">
+        {% for radio in form.method %}
+          <label class="choice" for="{{ radio.id_for_label }}">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+      {{ form.method.errors }}
+    </fieldset>
+
+    <p>
+      <label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>
+      {{ form.note }}
+      {{ form.note.errors }}
+    </p>
+
+    <button type="submit">Record the payment</button>
+  </form>
+</div>
+
+<div class="card" id="recent_payments">
+  <h2>Recent payments</h2>
+  {% if total_count > recent_limit %}
+    <p class="muted">The latest {{ recent_limit }} of {{ total_count }}, newest first.</p>
+  {% endif %}
+  <ul class="history payment-list">
+    {% for payment in recent %}
+      <li>
+        <div class="payment-line">
+          <strong class="payment-name">{{ payment.payer_name }}</strong>
+          <strong class="payment-amount">${{ payment.amount }}</strong>
+        </div>
+        <div class="muted">
+          {{ payment.get_method_display }} · paid {{ payment.paid_on|date:"M j, Y" }}
+          {% if not payment.member_id %}<span class="pill pill-unlinked">No account</span>{% endif %}
+        </div>
+        {% if payment.note %}<div class="payment-note">{{ payment.note|linebreaksbr }}</div>{% endif %}
+        <div class="muted small">Recorded {{ payment.created_at|date:"M j, Y, g:i a" }} by {{ payment.recorded_by_label }}</div>
+      </li>
+    {% empty %}
+      <li class="muted">No payments recorded yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+{{ suggestions|json_script:"payment_members" }}
+{% endblock %}
+{% block extra_body %}<script src="{% static 'js/payments.js' %}"></script>{% endblock %}

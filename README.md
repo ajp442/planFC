@@ -119,6 +119,7 @@ publishes the image only if they pass on both.
 | `config/` | Django settings, URLs, WSGI entrypoint |
 | `core/` | The home page, health check, base and PWA templates, tests |
 | `accounts/` | Profiles, pictures, push notifications, account deletion; sign-in itself is django-allauth |
+| `payments/` | Payments recorded by hand (PayPal, Venmo, Zelle, cash), superusers only |
 | `static/` | Stylesheet, install-prompt JavaScript, placeholder icons |
 | `tools/version_matrix.py` | Records and renders the third-party versions in each released image |
 | `tools/make_icons.py` | Regenerates the placeholder icons; delete once we have a real crest |
