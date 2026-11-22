@@ -19,7 +19,7 @@
       {% endif %}
     </dd>
     <dt>Date paid</dt><dd>{{ payment.paid_on|date:"M j, Y" }}</dd>
-    <dt>Method</dt><dd>{{ payment.get_method_display }}</dd>
+    <dt>Method</dt><dd>{{ payment.method }}</dd>
     {% if payment.note %}<dt>Note</dt><dd>{{ payment.note|linebreaksbr }}</dd>{% endif %}
     <dt>Recorded</dt><dd>{{ payment.created_at|date:"M j, Y, g:i a" }} by {{ payment.recorded_by_label }}</dd>
   </dl>

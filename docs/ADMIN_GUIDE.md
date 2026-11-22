@@ -168,6 +168,7 @@ Things that can go wrong:
 | **Invited** | You added them and they haven't chosen a password yet | No | Send the invitation again |
 | **Email not confirmed** | They signed up themselves but never followed the link in the confirmation email | No | Mark the email as confirmed |
 | **Deactivated** | An admin switched the account off | No | Reactivate |
+| **Unconfirmed** | Made when a superuser recorded a payment from someone who hadn't signed up. No email, no password | No | [Link to their real account](#linking-an-unconfirmed-account) once they sign up |
 
 ## Managing a member
 
@@ -305,26 +306,43 @@ app.
 | See every payment and its history | ✓ | ✓ |
 | Record a payment | | ✓ |
 | Edit any detail of a payment | | ✓ |
+| Link an unconfirmed account to a real one | ✓ | ✓ |
+| Change the list of payment methods (Database admin) | | ✓ |
 | Edit or remove anything in the history | | |
 
 ### Recording a payment (superusers)
 
-Open **Menu → Payments → Record a payment**, and fill in, top to bottom:
+Open **Menu → Payments → Record a payment** (or **Record a payment** on the
+Payments page). It takes four short steps. The steps are listed across the
+top of every page: the one you're on is highlighted, and the others are
+greyed. Tap any step you've already filled in to go back to it. Nothing you
+entered is lost, and once every step is filled in, **Next** takes you
+straight back to Review.
 
-1. **Who paid.** Start typing any part of their name or email, and pick them
-   from the list (tap, or arrow keys and Enter). Typing someone's full name
-   exactly links them too. The line under the box says which account the
-   payment will go to. If nobody matches, keep typing the name: the payment is
-   recorded under that name and shown as **No account**. You can link it to
-   their account later by editing it.
-2. **Amount** in dollars, e.g. `12` or `24.50`.
-3. **Date paid**: today unless you change it. Use the day the money arrived,
-   not the day you're entering it. The app keeps that separately anyway.
-4. **Method**: PayPal, Venmo, Zelle, Cash or Other.
-5. **Note**, optional: "paid for Sam too", "donation", a check number.
+1. **Who paid.** Everyone with an account is listed, including unconfirmed
+   and deactivated accounts. The search box is ready to type in and stays at
+   the top while you scroll. Type any part of a name or email to narrow the
+   list ("ann sm" finds Ann Smith), then tap the person, or press Enter for
+   the first match (arrow keys move the highlight). There's no confirmation:
+   it moves straight on.
+   - **Not in the list?** Type their name and tap **+ Add “…” as a new
+     member** (or press Enter when nobody matches). They're added as an
+     **Unconfirmed** member when you record the payment, not before. From
+     then on they're in every list like anyone else, and their payments
+     appear under their name. When they sign up, an admin
+     [links the two accounts](#linking-an-unconfirmed-account).
+2. **Amount** in dollars, e.g. `12` or `24.50`. Enter goes on.
+3. **Method & date.** Pick the method from the list (superusers can change
+   the list: see [Payment methods](#payment-methods)). **Date paid** is today
+   unless you change it. Use the day the money arrived, not the day you're
+   entering it. The app records that separately anyway.
+4. **Review.** Everything you entered, each with a **Change** link, and a
+   **Comment** box for anything worth knowing ("paid for Sam too",
+   "donation", a check number). **Record the payment** saves it.
 
-Then **Record the payment**. A green line confirms what was saved, and the
-form is ready for the next one. The latest 100 payments are listed below it.
+You then land on the Payments page, with a green line confirming what was
+saved and the new payment at the top of the list. **Start over** at the
+bottom of any step throws the half-entered payment away.
 
 Unlike Database admin, these pages never ask for a code from your
 authenticator app: your normal sign-in is enough. The superuser role itself
@@ -341,6 +359,32 @@ When and by whom it was first recorded can't be changed.
 
 A payment recorded twice by mistake can be deleted only in Database admin →
 Payments (with your 2FA code). The deletion goes into the history too.
+
+### Linking an unconfirmed account
+
+When someone who was recorded as an **Unconfirmed** member signs up (or is
+added and invited), give them their history:
+
+1. **Admin → Members**, and open the unconfirmed account (it says
+   **Unconfirmed**).
+2. **Link to their real account**, then pick their new account. Anyone with
+   exactly the same name is suggested first. You can also search.
+3. Check the summary and **Link the accounts**.
+
+Every payment moves to their real account, and each payment's history shows
+the change. The unconfirmed account is then removed, and the real account's
+**Changes by admins** notes the link. Any admin can do this, not only
+superusers. Check it's the same person: undoing it means editing each
+payment by hand.
+
+### Payment methods
+
+The methods offered in step 3 are a list superusers keep in **Database admin
+→ Payment methods**: add one, rename it, change the order (**Sort order**,
+lower first), or untick **Active** to stop offering it. A method that a
+payment already uses can't be deleted, so retire it by unticking Active
+instead. Old payments keep it. Renaming a method doesn't rewrite the history,
+which keeps the name used at the time.
 
 ### The payment history (everyone who can see payments)
 
@@ -451,6 +495,9 @@ turned on two-factor authentication and lost their phone.
 | Take the superuser role away | On the server: the same with `--remove` |
 | See who the superusers are | On the server: `docker compose exec web python manage.py superuser --list` |
 | Record a payment (superusers) | Menu → Payments → Record a payment |
+| Record a payment from someone without an account | Step 1: type their name → Add as a new member |
+| Give a new member the payments recorded before they signed up | Admin → Members → the Unconfirmed account → Link to their real account |
+| Add or retire a payment method (superusers) | Database admin → Payment methods |
 | Fix a payment entered wrong (superusers) | Open it from the list → Edit this payment |
 | Remove a payment recorded twice (superusers) | Database admin → Payments → delete it |
 | See who changed a payment, and when | Open it → History, or Menu → Payments → Payment history |

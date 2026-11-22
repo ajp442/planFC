@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block head_title %}Link {{ unconfirmed_name }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'member_detail' unconfirmed.pk %}">&larr; {{ unconfirmed_name }}</a></p>
+
+<div class="card">
+  <h1>Link {{ unconfirmed_name }}</h1>
+  <p class="muted">
+    Pick the account {{ unconfirmed_name }} signed up with. Their
+    {{ payment_count }} payment{{ payment_count|pluralize }} will move to it, and
+    the unconfirmed account will be removed. You'll confirm on the next page.
+  </p>
+
+  {% if same_name %}
+    <h2>Same name</h2>
+    <ul class="member-list">
+      {% for row in same_name %}
+        {% include "accounts/members/_link_row.html" %}
+      {% endfor %}
+    </ul>
+    <hr>
+  {% endif %}
+
+  <form method="get" class="search" role="search">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search by name or email" aria-label="Search accounts" autocomplete="off" autofocus>
+    <button type="submit" class="secondary">Search</button>
+  </form>
+  {% if query %}
+    <p class="muted">{{ rows|length }} match “{{ query }}”. <a href="{% url 'member_link' unconfirmed.pk %}">Clear the search</a></p>
+  {% endif %}
+
+  <ul class="member-list">
+    {% for row in rows %}
+      {% include "accounts/members/_link_row.html" %}
+    {% empty %}
+      <li class="muted">Nobody matches. Only accounts someone signs in to are listed.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

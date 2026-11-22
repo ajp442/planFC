@@ -1,0 +1,41 @@
+{% extends "payments/wizard/_base.html" %}
+{% block head_extra %}
+  {# A GET search without JavaScript; with it, typing filters the list below. #}
+  <form method="get" class="who-search" role="search" id="who_search_form">
+    <input type="search" name="q" id="who_search" value="{{ query }}"
+           placeholder="Search by name or email" aria-label="Who paid?"
+           aria-controls="who_list" autocomplete="off" autocapitalize="words"
+           spellcheck="false" enterkeyhint="go" autofocus>
+  </form>
+  <button type="submit" form="who_form" name="new_name" value="{{ query }}" id="who_add"
+          class="who-add secondary"{% if not query %} hidden{% endif %}>
+    + Add “<span id="who_add_name">{{ query }}</span>” as a new member
+  </button>
+{% endblock %}
+{% block step %}
+<form method="post" class="card who-card" id="who_form">
+  {% csrf_token %}
+  <p class="muted small who-count" id="who_count" aria-live="polite">
+    {% if query %}{{ rows|length }} of {{ total }} match{% else %}{{ total }} member{{ total|pluralize }}{% endif %}
+  </p>
+  <ul class="who-list" id="who_list">
+    {% for row in rows %}
+      <li data-search="{{ row.search }}">
+        <button type="submit" name="member" value="{{ row.id }}" id="who_{{ row.id }}"
+                class="who-pick{% if row.chosen %} chosen{% endif %}"{% if row.chosen %} aria-current="true"{% endif %}>
+          <span class="who-text">
+            <span class="who-name">{{ row.name }}</span>
+            <span class="who-email">{{ row.email|default:"No email address" }}</span>
+          </span>
+          {% if row.unconfirmed %}<span class="pill pill-unconfirmed_account">Unconfirmed</span>{% endif %}
+          {% if not row.active %}<span class="pill pill-deactivated">Deactivated</span>{% endif %}
+          {% if row.chosen %}<span class="pill pill-admin">Chosen</span>{% endif %}
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+  <p class="muted who-empty" id="who_empty"{% if rows %} hidden{% endif %}>
+    Nobody matches. Use “Add” above to record the payment under a new, unconfirmed member.
+  </p>
+</form>
+{% endblock %}

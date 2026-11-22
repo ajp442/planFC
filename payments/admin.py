@@ -1,7 +1,8 @@
 """Payments in Database admin (superusers with 2FA, accounts/admin_site.py).
 
-Recording and editing happen in the app (views.py), where every change is
-written to the payment's history. Here payments can be looked at and, as a
+Recording and editing happen in the app (views.py, wizard.py), where every
+change is written to the payment's history. Payment methods, the choices
+offered when recording, are edited here. Here payments can be looked at and, as a
 last resort for a duplicate, deleted one at a time; the deletion is written
 to the history too. The history itself is view-only, here as everywhere.
 """
@@ -9,12 +10,28 @@ to the history too. The history itself is view-only, here as everywhere.
 from django.contrib import admin
 
 from . import history
-from .models import Payment, PaymentChange
+from .models import Payment, PaymentChange, PaymentMethod
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    """Add, rename, reorder or retire the methods offered when recording a
+    payment. One in use can't be deleted (the database protects it): untick
+    Active instead, and old payments keep it."""
+
+    list_display = ("name", "active", "sort_order", "payment_count")
+    list_editable = ("active", "sort_order")
+    ordering = ("sort_order", "name")
+
+    @admin.display(description="Payments")
+    def payment_count(self, obj):
+        return obj.payments.count()
 
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ("paid_on", "payer_name", "amount", "method", "member", "recorded_by_label", "created_at")
+    list_select_related = ("method", "member")
     list_filter = ("method",)
     search_fields = ("payer_name", "note", "member__email")
     date_hierarchy = "paid_on"

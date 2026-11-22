@@ -63,7 +63,7 @@ screen, so a change needs the icon removed and added again.
           <details class="submenu" id="payments_menu">
             <summary>Payments</summary>
             <div class="submenu-items">
-              {% if user.is_superuser %}<a href="{% url 'payments' %}">Record a payment</a>{% endif %}
+              {% if user.is_superuser %}<a href="{% url 'payment_new' %}">Record a payment</a>{% endif %}
               <a href="{% url 'payments' %}#recent_payments">All payments</a>
               <a href="{% url 'payment_changes' %}">Payment history</a>
             </div>

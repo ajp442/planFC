@@ -28,7 +28,7 @@ def snapshot(payment):
         "member": label(payment.member) if payment.member else "",
         "amount": f"${payment.amount:.2f}",
         "paid_on": date_format(payment.paid_on, "M j, Y"),
-        "method": payment.get_method_display(),
+        "method": payment.method.name,
         "note": payment.note,
     }
 

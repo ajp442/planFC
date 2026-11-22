@@ -1,0 +1,20 @@
+{% extends "payments/wizard/_base.html" %}
+{% block step %}
+<form method="post" class="card stack" id="wizard_form">
+  {% csrf_token %}
+  <input type="hidden" name="goto" value="">
+  <h1>How and when?</h1>
+  {{ form.non_field_errors }}
+  <p>
+    <label for="{{ form.method.id_for_label }}">{{ form.method.label }}</label>
+    {{ form.method }}
+    {{ form.method.errors }}
+  </p>
+  <p>
+    <label for="{{ form.paid_on.id_for_label }}">{{ form.paid_on.label }}</label>
+    {{ form.paid_on }}
+    {{ form.paid_on.errors }}
+  </p>
+  <button type="submit">Next</button>
+</form>
+{% endblock %}

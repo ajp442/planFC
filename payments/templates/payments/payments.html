@@ -1,21 +1,11 @@
 {% extends "base.html" %}
-{% load static %}
 {% block head_title %}Payments{% endblock %}
 {% block content %}
-{% if can_record %}
-  <div class="card">
-    <h1>Record a payment</h1>
-    <p class="muted">Pick a member as you type. If nobody matches, the payment is kept under the name you typed.</p>
-    <form method="post" class="stack" id="payment_form">
-      {% csrf_token %}
-      {% include "payments/_fields.html" %}
-      <button type="submit">Record the payment</button>
-    </form>
-  </div>
-{% endif %}
-
 <div class="card" id="recent_payments">
-  {% if can_record %}<h2>Recent payments</h2>{% else %}<h1>Payments</h1>{% endif %}
+  <div class="card-head">
+    <h1>Payments</h1>
+    {% if can_record %}<a class="button small" href="{% url 'payment_new' %}">Record a payment</a>{% endif %}
+  </div>
   {% if not can_record %}
     <p class="muted">Payments are recorded and corrected by superusers. Open one to see its history.</p>
   {% endif %}
@@ -31,7 +21,7 @@
             <strong class="payment-amount">${{ payment.amount }}</strong>
           </div>
           <div class="muted">
-            {{ payment.get_method_display }} · paid {{ payment.paid_on|date:"M j, Y" }}
+            {{ payment.method }} · paid {{ payment.paid_on|date:"M j, Y" }}
             {% if not payment.member_id %}<span class="pill pill-unlinked">No account</span>{% endif %}
             {% if payment.edits %}<span class="pill">Edited</span>{% endif %}
           </div>
@@ -46,7 +36,4 @@
 </div>
 
 <p class="center"><a href="{% url 'payment_changes' %}">History of every change</a></p>
-
-{% if can_record %}{{ suggestions|json_script:"payment_members" }}{% endif %}
 {% endblock %}
-{% block extra_body %}{% if can_record %}<script src="{% static 'js/payments.js' %}"></script>{% endif %}{% endblock %}

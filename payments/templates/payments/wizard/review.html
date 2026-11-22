@@ -1,0 +1,32 @@
+{% extends "payments/wizard/_base.html" %}
+{% block step %}
+<form method="post" class="card stack" id="wizard_form">
+  {% csrf_token %}
+  <input type="hidden" name="goto" value="">
+  <h1>Check and record</h1>
+  <dl class="facts review">
+    <dt>Who paid</dt>
+    <dd>
+      {% if member %}
+        {{ draft.payer_name }}{% if member.email %} <span class="muted">&lt;{{ member.email }}&gt;</span>{% endif %}
+      {% else %}
+        {{ new_name }} <span class="pill pill-unconfirmed_account">New, unconfirmed</span>
+        <span class="muted small review-note">Added as a member when you record this.</span>
+      {% endif %}
+      <a class="review-change" href="{% url 'payment_new_who' %}" data-goto="who">Change</a>
+    </dd>
+    <dt>Amount</dt>
+    <dd>${{ amount }} <a class="review-change" href="{% url 'payment_new_amount' %}" data-goto="amount">Change</a></dd>
+    <dt>Method</dt>
+    <dd>{{ method }} <a class="review-change" href="{% url 'payment_new_details' %}" data-goto="details">Change</a></dd>
+    <dt>Date paid</dt>
+    <dd>{{ paid_on|date:"M j, Y" }} <a class="review-change" href="{% url 'payment_new_details' %}" data-goto="details">Change</a></dd>
+  </dl>
+  <p>
+    <label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>
+    {{ form.note }}
+    {{ form.note.errors }}
+  </p>
+  <button type="submit">Record the payment</button>
+</form>
+{% endblock %}

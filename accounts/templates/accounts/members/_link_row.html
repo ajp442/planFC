@@ -1,0 +1,12 @@
+<li>
+  <a href="{% url 'member_link' unconfirmed.pk %}?into={{ row.user.pk }}">
+    {% include "accounts/avatar.html" with picture_url=row.picture_url initials=row.initials size="small" %}
+    <div class="member-text">
+      <div class="member-name">{{ row.name }}</div>
+      <div class="muted member-email">{{ row.user.email }}</div>
+    </div>
+    <div class="pills">
+      {% if row.status != "active" %}<div class="pill pill-{{ row.status }}">{{ row.status_label }}</div>{% endif %}
+    </div>
+  </a>
+</li>

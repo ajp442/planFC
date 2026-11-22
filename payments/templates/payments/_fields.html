@@ -1,6 +1,6 @@
 {% comment %}
-The payment form's fields, shared by recording (payments.html) and editing
-(detail.html). payments.js turns "Who paid" into a member search; the page
+The fields for editing a payment (detail.html). Recording one goes through
+the steps in wizard/. payments.js turns "Who paid" into a member search; the page
 must also include the `suggestions` JSON.
 {% endcomment %}
 {{ form.non_field_errors }}
@@ -28,15 +28,11 @@ must also include the `suggestions` JSON.
   </p>
 </div>
 
-<fieldset class="choices">
-  <legend>{{ form.method.label }}</legend>
-  <div class="choice-pills">
-    {% for radio in form.method %}
-      <label class="choice" for="{{ radio.id_for_label }}">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
-    {% endfor %}
-  </div>
+<p>
+  <label for="{{ form.method.id_for_label }}">{{ form.method.label }}</label>
+  {{ form.method }}
   {{ form.method.errors }}
-</fieldset>
+</p>
 
 <p>
   <label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>

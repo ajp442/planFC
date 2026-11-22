@@ -184,9 +184,18 @@ Each milestone should be complete and well vetted before moving onto the next mi
     *Payment history* lists every change to every payment. Edited payments are marked "Edited".
   - Deleting a payment is only possible in Database admin (with 2FA), for a true duplicate, and
     the deletion is written to the history with the payment's last values.
+- **Step-by-step recording and unconfirmed members (built 2026-11-21).** Recording became four
+  steps (Who paid → Amount → Method & date → Review with a comment), with the steps shown on
+  every page as the navigation back. The draft is kept in the session until it is recorded.
+  - Who paid lists every account, with a pinned search box. Someone not listed is added as an
+    **unconfirmed member** when the payment is recorded: a real account with no email and no
+    password, so their payments live under a member and show up everywhere.
+  - Admins link an unconfirmed account to the person's real one once they sign up. Their payments
+    move over, each with an edit in its history, and the unconfirmed account is removed. Other
+    apps (games, later) move their own records through the same signal
+    (`accounts.signals.unconfirmed_account_linked`).
+  - Payment methods are a table superusers edit in Database admin instead of fixed choices.
 - **Next for manual payments**, not built yet:
-  - Link "No account" payments to an account once the person signs up or is found. Editing a
-    payment can already do this one at a time.
   - Members see their own payment history and balance. This needs games and their costs, so it
     belongs with the ledger.
   - Admins (not only superusers) recording payments, if superusers become a bottleneck.

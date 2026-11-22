@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Every step of recording a payment (wizard.py). The list of steps on top is
+also the navigation: any step already reached opens again. On the steps with
+a form (id="wizard_form"), payment_wizard.js submits it on the way out so
+what was typed is kept; without JavaScript the links simply go.
+{% endcomment %}
+{% block head_title %}{{ step_title }} · Record a payment{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <nav class="steps" aria-label="Recording a payment">
+    <ol>
+      {% for s in steps %}
+        <li class="step step-{{ s.state }}">
+          {% if s.state == "current" %}
+            <span class="step-box" aria-current="step">
+          {% elif s.state == "open" %}
+            <a class="step-box" href="{{ s.url }}" data-goto="{{ s.key }}">
+          {% else %}
+            <span class="step-box" aria-disabled="true">
+          {% endif %}
+              <span class="step-num" aria-hidden="true">{{ s.number }}</span>
+              <span class="step-title">{{ s.title }}</span>
+              <span class="step-summary">{% if s.summary %}{{ s.summary }}{% else %}&nbsp;{% endif %}</span>
+          {% if s.state == "open" %}</a>{% else %}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </nav>
+  {% block head_extra %}{% endblock %}
+</div>
+
+{% block step %}{% endblock %}
+
+<p class="center small wizard-foot">
+  <a href="{% url 'payments' %}">Cancel</a> ·
+  <a href="{% url 'payment_new' %}">Start over</a>
+</p>
+{% endblock %}
+{% block extra_body %}<script src="{% static 'js/payment_wizard.js' %}"></script>{% endblock %}

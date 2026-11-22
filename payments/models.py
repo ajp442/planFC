@@ -11,6 +11,27 @@ from django.conf import settings
 from django.db import models
 
 
+class PaymentMethod(models.Model):
+    """How money arrives: Venmo, Zelle, cash and so on.
+
+    A table rather than fixed choices, so a superuser can add, rename or
+    reorder methods in Database admin. A method a payment uses can't be
+    deleted (PROTECT); untick `active` instead, and it stops being offered
+    while old payments keep it. Renaming one leaves the history as it was
+    written, since history.py copies the name at the time.
+    """
+
+    name = models.CharField(max_length=50, unique=True)
+    active = models.BooleanField(default=True, help_text="Offered when recording a payment.")
+    sort_order = models.PositiveSmallIntegerField(default=0, help_text="Lower comes first.")
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Payment(models.Model):
     """One payment received.
 
@@ -24,13 +45,6 @@ class Payment(models.Model):
     `paid_on` is when the money changed hands, which may be earlier.
     """
 
-    class Method(models.TextChoices):
-        PAYPAL = "paypal", "PayPal"
-        VENMO = "venmo", "Venmo"
-        ZELLE = "zelle", "Zelle"
-        CASH = "cash", "Cash"
-        OTHER = "other", "Other"
-
     member = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -43,7 +57,7 @@ class Payment(models.Model):
     # Decimal, never float: balances must add up to the cent.
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     paid_on = models.DateField()
-    method = models.CharField(max_length=16, choices=Method.choices)
+    method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name="payments")
     note = models.TextField(blank=True)
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -64,7 +78,7 @@ class Payment(models.Model):
         ]
 
     def __str__(self):
-        return f"${self.amount} from {self.payer_name} ({self.get_method_display()}, {self.paid_on})"
+        return f"${self.amount} from {self.payer_name} ({self.method}, {self.paid_on})"
 
 
 class PaymentChange(models.Model):

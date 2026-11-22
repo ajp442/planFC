@@ -33,7 +33,7 @@
           {% include "accounts/avatar.html" with picture_url=row.picture_url initials=row.initials size="small" %}
           <div class="member-text">
             <div class="member-name">{{ row.name }}</div>
-            <div class="muted member-email">{{ row.user.email }}</div>
+            <div class="muted member-email">{{ row.user.email|default:"No email address" }}</div>
           </div>
           <div class="pills">
             {% if row.is_superuser %}<div class="pill pill-admin">Superuser</div>{% elif row.is_admin %}<div class="pill pill-admin">Admin</div>{% endif %}

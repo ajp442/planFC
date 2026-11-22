@@ -16,6 +16,7 @@ urlpatterns = [
     path("members/<int:user_id>/", member_views.member_detail, name="member_detail"),
     path("members/<int:user_id>/role/", member_views.member_role, name="member_role"),
     path("members/<int:user_id>/delete/", member_views.member_delete, name="member_delete"),
+    path("members/<int:user_id>/link/", member_views.member_link, name="member_link"),
     # Only the actions the view knows; anything else is a 404.
     re_path(
         rf"^members/(?P<user_id>\d+)/(?P<action>{'|'.join(member_views.MEMBER_ACTIONS)})/$",

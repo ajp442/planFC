@@ -97,6 +97,9 @@ class AdminAction(models.Model):
         NAME_CHANGED = "name_changed", "Name changed"
         PICTURE_REMOVED = "picture_removed", "Profile picture removed"
         DELETED = "deleted", "Account deleted"
+        # Unconfirmed accounts: see UnconfirmedAccount.
+        ADDED_UNCONFIRMED = "added_unconfirmed", "Added as an unconfirmed member"
+        LINKED = "linked", "Unconfirmed account linked in"
 
     # Null for changes made on the command line (`make_admin`, `superuser`),
     # and after the admin's own account is deleted.
@@ -124,3 +127,33 @@ class AdminAction(models.Model):
 
     def __str__(self):
         return f"{self.actor_label}: {self.get_action_display()}: {self.target_label}"
+
+
+class UnconfirmedAccount(models.Model):
+    """Marks an account made for someone who hasn't signed up, so a payment
+    from them is still recorded under a member like any other.
+
+    The account is a real User, so it shows up in every list and search, but
+    it has no email address and no password: nobody can sign in to it. When
+    the person signs up for real, an admin links the two (members.link):
+    everything recorded against this account moves to theirs, and this one
+    is deleted.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="unconfirmed_account",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_by_label = models.CharField(max_length=320)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+
+    def __str__(self):
+        return f"Unconfirmed: {self.user}"

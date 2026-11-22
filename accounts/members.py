@@ -28,7 +28,8 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from .context_processors import display_name
-from .models import AdminAction
+from .models import AdminAction, UnconfirmedAccount
+from .signals import unconfirmed_account_linked
 
 logger = logging.getLogger(__name__)
 
@@ -119,26 +120,36 @@ def set_admin(user, make_admin):
 # --- Account state -----------------------------------------------------------
 
 DEACTIVATED = "deactivated"
+# Made while recording a payment from someone who hasn't signed up.
+UNCONFIRMED_ACCOUNT = "unconfirmed_account"
 INVITED = "invited"
 UNCONFIRMED = "unconfirmed"
 ACTIVE = "active"
 
 STATUS_LABELS = {
     DEACTIVATED: "Deactivated",
+    UNCONFIRMED_ACCOUNT: "Unconfirmed",
     INVITED: "Invited",
     UNCONFIRMED: "Email not confirmed",
     ACTIVE: "Active",
 }
 
 
+def is_unconfirmed_account(user):
+    return UnconfirmedAccount.objects.filter(user=user).exists()
+
+
 def is_invite_pending(user):
-    """Added by an admin and not yet set up: no password, never signed in."""
-    return user.last_login is None and not user.has_usable_password()
+    """Added by an admin and not yet set up: no password, never signed in.
+    An unconfirmed account looks the same, but has no address to invite."""
+    return bool(user.email) and user.last_login is None and not user.has_usable_password()
 
 
-def status(user, has_confirmed_email):
+def status(user, has_confirmed_email, unconfirmed_account=False):
     if not user.is_active:
         return DEACTIVATED
+    if unconfirmed_account:
+        return UNCONFIRMED_ACCOUNT
     if is_invite_pending(user):
         return INVITED
     if not has_confirmed_email:
@@ -173,7 +184,9 @@ def confirm_email(user):
 
 def label(user):
     name = user.get_full_name()
-    return f"{name} <{user.email}>" if name else (user.email or user.get_username())
+    if name and user.email:
+        return f"{name} <{user.email}>"
+    return name or user.email or user.get_username()
 
 
 def record(actor, target, action, detail=""):
@@ -263,3 +276,62 @@ def send_invite(request, user):
         logger.exception("Could not send the invitation to user %s", user.pk)
         return False
     return True
+
+
+# --- Unconfirmed accounts ------------------------------------------------------
+
+def split_name(name):
+    """"Bob the Guest" -> ("Bob", "the Guest"): the first word is the first name."""
+    first, _, last = " ".join(name.split()).partition(" ")
+    return first[:150], last[:150]
+
+
+@transaction.atomic
+def create_unconfirmed_member(request, name):
+    """An account for someone who hasn't signed up, so what they pay can be
+    recorded against a member and found later. No email, no password: nobody
+    can sign in to it. link() hands it over once they have a real account."""
+    adapter = get_adapter(request)
+    user = adapter.new_user(request)
+    user.first_name, user.last_name = split_name(name)
+    user.email = ""
+    user.set_unusable_password()
+    adapter.populate_username(request, user)
+    user.save()
+    UnconfirmedAccount.objects.create(
+        user=user, created_by=request.user, created_by_label=label(request.user),
+    )
+    record(request.user, user, AdminAction.Action.ADDED_UNCONFIRMED)
+    return user
+
+
+def can_link(unconfirmed, account):
+    """Why `unconfirmed` can't be linked into `account`, or None if it can."""
+    if not is_unconfirmed_account(unconfirmed):
+        return "Only an unconfirmed account can be linked into another."
+    if account.pk == unconfirmed.pk:
+        return "An account can't be linked into itself."
+    if is_unconfirmed_account(account):
+        return "Link it into a real account: one that someone signs in to."
+    return None
+
+
+@transaction.atomic
+def link(actor, unconfirmed, account):
+    """Hands everything recorded against an unconfirmed account to the
+    person's real one, then deletes the unconfirmed account.
+
+    Each app moves its own records (signals.unconfirmed_account_linked), in
+    this same transaction, so either everything moves or nothing does.
+    Returns what was moved, as short descriptions."""
+    problem = can_link(unconfirmed, account)
+    if problem:
+        raise ValueError(problem)
+    responses = unconfirmed_account_linked.send(
+        sender=UnconfirmedAccount, actor=actor, unconfirmed=unconfirmed, account=account,
+    )
+    moved = [text for _, text in responses if text]
+    detail = f"From “{label(unconfirmed)}”" + (f": {', '.join(moved)} moved" if moved else "")
+    record(actor, account, AdminAction.Action.LINKED, detail=detail)
+    unconfirmed.delete()
+    return moved

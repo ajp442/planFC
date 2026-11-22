@@ -247,7 +247,7 @@ form p { margin: 0 0 16px; }
 label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9375rem; }
 
 input[type=text], input[type=email], input[type=password], input[type=file],
-input[type=number], input[type=date], textarea, select {
+input[type=number], input[type=date], input[type=search], textarea, select {
   display: block;
   width: 100%;
   padding: 12px;
@@ -372,6 +372,7 @@ hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
 
 .pill-admin, .tabs .pill.on { border-color: var(--pitch); background: var(--pitch); color: #fff; }
 .pill-deactivated { border-color: var(--bad); color: var(--bad); }
+.pill-unconfirmed_account { border-color: var(--dev); color: var(--dev); }
 
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 0.9375rem; }
 .facts dt { color: var(--muted); }
@@ -465,30 +466,6 @@ form .suggestions span { display: block; margin: 0; }
 form .suggestions .suggestion-name { color: var(--text); font-size: 1rem; font-weight: 600; }
 form .suggestions .suggestion-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Method: one tap on a pill instead of a dropdown. */
-fieldset.choices { margin: 0 0 16px; padding: 0; border: 0; }
-fieldset.choices legend { margin-bottom: 6px; padding: 0; font-weight: 600; font-size: 0.9375rem; }
-.choice-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.choice {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 10px 16px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--field);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* The radio itself stays in the page for keyboards and screen readers. */
-.choice input { position: absolute; opacity: 0; pointer-events: none; }
-form .choice span { display: inline; margin: 0; color: inherit; font-size: 0.9375rem; }
-.choice:has(input:checked) { border-color: var(--pitch); background: var(--pitch); color: #fff; }
-.choice:has(input:focus-visible) { outline: 2px solid var(--pitch); outline-offset: 2px; }
-
 .payment-line { display: flex; justify-content: space-between; gap: 12px; }
 .payment-name { min-width: 0; overflow-wrap: anywhere; }
 .payment-amount { flex: none; font-variant-numeric: tabular-nums; }
@@ -503,3 +480,134 @@ form .choice span { display: inline; margin: 0; color: inherit; font-size: 0.937
 .payment-link { padding: 10px 0; }
 h1.payment-amount, h1.payment-name { margin: 0 0 12px; }
 .change-lines { margin: 6px 0; font-size: 0.875rem; }
+
+/* --- Recording a payment, step by step (payments/wizard.py) ---------------- */
+
+/* The steps, and on the first step the search box, stay pinned under the
+   header while the list scrolls. payment_wizard.js measures the header. */
+.wizard-head {
+  position: sticky;
+  top: var(--topbar-h, 61px);
+  z-index: 10;
+  margin: -24px -16px 12px;
+  padding: 12px 16px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.steps ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--muted);
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.25;
+}
+
+.step-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.step-title { font-size: 0.8125rem; font-weight: 600; }
+
+.step-summary {
+  width: 100%;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The step you're on stands out; every other one is greyed. */
+.step-current .step-box { border-color: var(--pitch); background: var(--surface); color: var(--text); }
+.step-current .step-num { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+
+/* Steps already reached can be opened again. */
+.step-open .step-box { opacity: 0.75; }
+.step-open .step-box:hover, .step-open .step-box:focus-visible { border-color: var(--border); background: var(--surface); opacity: 1; }
+
+.step-locked .step-box { opacity: 0.4; }
+
+.wizard-foot { margin-top: 8px; }
+
+/* Step 1: who paid. */
+.who-search { margin-top: 10px; }
+.who-search input { -webkit-appearance: none; appearance: none; }
+
+button.who-add {
+  margin-top: 8px;
+  padding: 10px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.who-add.active { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+
+.who-card { padding: 8px 12px; }
+.who-count { margin: 4px 4px 6px; }
+.who-empty { margin: 8px 4px; }
+
+/* `form ul` and `form span` are styled as help text; these are not. */
+#who_list { margin: 0; padding: 0; list-style: none; color: inherit; font-size: inherit; }
+#who_list li + li { border-top: 1px solid var(--border); }
+
+button.who-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+  /* Kept clear of the pinned header when arrowed or scrolled to. */
+  scroll-margin-top: calc(var(--topbar-h, 61px) + var(--wizard-head-h, 120px) + 8px);
+}
+
+button.who-pick:hover, button.who-pick.active { background: var(--bg); filter: none; }
+button.who-pick.active { outline: 2px solid var(--pitch); outline-offset: -2px; }
+button.who-pick.chosen .who-name { color: var(--pitch); }
+
+form .who-pick span.who-text { display: block; flex: 1; min-width: 0; margin: 0; color: var(--text); font-size: 1rem; }
+form .who-pick span.who-name, form .who-pick span.who-email {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+form .who-pick span.who-name { color: inherit; font-size: 0.9375rem; font-weight: 600; }
+form .who-pick span.who-email { color: var(--muted); font-size: 0.8125rem; }
+form .who-pick span.pill { display: inline-block; flex: none; margin: 0; }
+
+/* Review. */
+.facts.review { margin-bottom: 16px; }
+.review-change { margin-left: 6px; font-size: 0.8125rem; }
+form .facts.review span { display: inline; margin: 0; font-size: inherit; }
+form .facts.review span.pill { display: inline-block; margin-left: 4px; font-size: 0.75rem; }
+form .facts.review span.review-note { display: block; margin-top: 2px; font-size: 0.8125rem; }

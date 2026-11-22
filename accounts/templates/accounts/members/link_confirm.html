@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block head_title %}Link {{ unconfirmed_name }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{% url 'member_link' unconfirmed.pk %}">&larr; Pick another account</a></p>
+
+<div class="card">
+  <h1>Link to {{ account_name }}?</h1>
+  <dl class="facts">
+    <dt>From</dt><dd>{{ unconfirmed_name }} <span class="pill pill-unconfirmed_account">Unconfirmed</span></dd>
+    <dt>Into</dt><dd>{{ account_name }}{% if account.email %} &lt;{{ account.email }}&gt;{% endif %}</dd>
+    <dt>Payments</dt><dd>{{ payment_count }} will move</dd>
+  </dl>
+  <p class="muted">
+    Everything recorded for {{ unconfirmed_name }} moves to {{ account_name }}'s
+    account, and each payment's history notes the change. The unconfirmed account
+    is then removed. This can't be undone in one step, so check it's the same person.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="into" value="{{ account.pk }}">
+    <button type="submit">Link the accounts</button>
+  </form>
+</div>
+{% endblock %}

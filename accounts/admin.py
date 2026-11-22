@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
 from . import members
-from .models import AdminAction, ProfilePicture, PushSubscription
+from .models import AdminAction, ProfilePicture, PushSubscription, UnconfirmedAccount
 
 User = get_user_model()
 
@@ -78,4 +78,18 @@ class AdminActionAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(UnconfirmedAccount)
+class UnconfirmedAccountAdmin(admin.ModelAdmin):
+    """Which accounts stand in for someone who hasn't signed up. Made when a
+    payment is recorded; linked into a real account from the member's page
+    in the app (Members → their name → Link to their real account)."""
+
+    list_display = ("user", "created_by_label", "created_at")
+    search_fields = ("user__first_name", "user__last_name")
+    readonly_fields = ("user", "created_by", "created_by_label", "created_at")
+
+    def has_add_permission(self, request):
         return False

@@ -17,7 +17,7 @@ from . import members
 from .context_processors import display_name, initials, picture_url
 from .forms import AddMemberForm, MemberNameForm
 from .members import admin_required
-from .models import AdminAction, ProfilePicture
+from .models import AdminAction, ProfilePicture, UnconfirmedAccount
 
 User = get_user_model()
 Action = AdminAction.Action
@@ -27,9 +27,9 @@ Action = AdminAction.Action
 EMAIL_BACKEND = "allauth.account.auth_backends.AuthenticationBackend"
 
 
-def _row(user, confirmed_ids, picture_times):
+def _row(user, confirmed_ids, picture_times, unconfirmed_ids):
     """What the list and the detail page show for one member."""
-    state = members.status(user, user.pk in confirmed_ids)
+    state = members.status(user, user.pk in confirmed_ids, user.pk in unconfirmed_ids)
     updated_at = picture_times.get(user.pk)
     return {
         "user": user,
@@ -53,7 +53,10 @@ def _rows(users):
     picture_times = dict(
         ProfilePicture.objects.filter(user_id__in=ids).values_list("user_id", "updated_at")
     )
-    return [_row(user, confirmed_ids, picture_times) for user in users]
+    unconfirmed_ids = set(
+        UnconfirmedAccount.objects.filter(user_id__in=ids).values_list("user_id", flat=True)
+    )
+    return [_row(user, confirmed_ids, picture_times, unconfirmed_ids) for user in users]
 
 
 @admin_required
@@ -126,6 +129,7 @@ def member_detail(request, user_id):
         "sign_in_methods": sign_in_methods,
         "email_confirmed": members.has_confirmed_email(member),
         "history": AdminAction.objects.filter(target=member)[:20],
+        "payment_count": member.payments.count(),
     })
 
 
@@ -135,6 +139,8 @@ def member_detail(request, user_id):
 # can be undone or repeated, so they need no confirmation page.
 
 def _resend_invite(request, member):
+    if members.is_unconfirmed_account(member):
+        return False, "An unconfirmed account has no email address, so there is no invitation to send."
     if not member.is_active or not members.is_invite_pending(member):
         return False, "They have already set up their account, so there is no invitation to send."
     if not members.send_invite(request, member):
@@ -214,6 +220,9 @@ def member_role(request, user_id):
     if members.is_protected(member):
         messages.error(request, members.SUPERUSER_MESSAGE.format(name=display_name(member)))
         return redirect("member_detail", user_id=member.pk)
+    if members.is_unconfirmed_account(member):
+        messages.error(request, "Nobody can sign in to an unconfirmed account, so it can't be an admin.")
+        return redirect("member_detail", user_id=member.pk)
     currently_admin = member.is_staff or member.is_superuser
     if request.method == "POST":
         members.set_admin(member, not currently_admin)
@@ -251,6 +260,60 @@ def member_delete(request, user_id):
     return render(request, "accounts/members/delete.html", {
         "member": member,
         "target_name": display_name(member),
+    })
+
+
+@admin_required
+def member_link(request, user_id):
+    """Hands an unconfirmed account's records to the real account of the
+    person it stood in for (members.link): pick the account, confirm, done."""
+    unconfirmed = get_object_or_404(User, pk=user_id)
+    if not members.is_unconfirmed_account(unconfirmed):
+        messages.error(request, "Only an unconfirmed account can be linked into another.")
+        return redirect("member_detail", user_id=unconfirmed.pk)
+    payment_count = unconfirmed.payments.count()
+
+    target_id = request.POST.get("into") or request.GET.get("into")
+    if target_id:
+        account = User.objects.filter(pk=target_id).first() if target_id.isdigit() else None
+        problem = "That account no longer exists." if account is None else members.can_link(unconfirmed, account)
+        if problem:
+            messages.error(request, problem)
+            return redirect("member_link", user_id=unconfirmed.pk)
+        if request.method == "POST":
+            name = display_name(unconfirmed)
+            moved = members.link(request.user, unconfirmed, account)
+            messages.success(
+                request,
+                f"{name} is now linked to {display_name(account)}'s account"
+                + (f": {', '.join(moved)} moved over." if moved else "."),
+            )
+            return redirect("member_detail", user_id=account.pk)
+        return render(request, "accounts/members/link_confirm.html", {
+            "unconfirmed": unconfirmed,
+            "unconfirmed_name": display_name(unconfirmed),
+            "account": account,
+            "account_name": display_name(account),
+            "payment_count": payment_count,
+        })
+
+    # Real accounts only. Anyone with the same name is suggested first.
+    query = request.GET.get("q", "").strip()
+    candidates = User.objects.filter(unconfirmed_account__isnull=True).order_by("first_name", "last_name", "email")
+    for word in query.split():
+        candidates = candidates.filter(
+            Q(first_name__icontains=word) | Q(last_name__icontains=word) | Q(email__icontains=word)
+        )
+    rows = _rows(candidates)
+    full_name = unconfirmed.get_full_name().lower()
+    same_name = [row for row in rows if row["user"].get_full_name().lower() == full_name]
+    return render(request, "accounts/members/link.html", {
+        "unconfirmed": unconfirmed,
+        "unconfirmed_name": display_name(unconfirmed),
+        "payment_count": payment_count,
+        "rows": rows,
+        "same_name": [] if query else same_name,
+        "query": query,
     })
 
 

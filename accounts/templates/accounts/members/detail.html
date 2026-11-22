@@ -8,7 +8,7 @@
     {% include "accounts/avatar.html" with picture_url=row.picture_url initials=row.initials size="large" %}
     <div>
       <h1>{{ row.name }}</h1>
-      <p class="muted">{{ member.email }}</p>
+      <p class="muted">{{ member.email|default:"No email address" }}</p>
     </div>
   </div>
 
@@ -17,8 +17,10 @@
     <dd>{% if row.is_superuser %}Superuser{% elif row.is_admin %}Admin{% else %}Member{% endif %}{% if is_self %} (you){% endif %}</dd>
     <dt>Status</dt>
     <dd>{{ row.status_label }}</dd>
-    <dt>Email</dt>
-    <dd>{% if email_confirmed %}Confirmed{% else %}Not confirmed{% endif %}</dd>
+    {% if member.email %}
+      <dt>Email</dt>
+      <dd>{% if email_confirmed %}Confirmed{% else %}Not confirmed{% endif %}</dd>
+    {% endif %}
     <dt>Signs in with</dt>
     <dd>{{ sign_in_methods|join:", "|default:"Nothing yet" }}</dd>
     <dt>Joined</dt>
@@ -27,6 +29,22 @@
     <dd>{{ member.last_login|date:"M j, Y"|default:"Never" }}</dd>
   </dl>
 </div>
+
+{% if row.status == "unconfirmed_account" %}
+<section class="card">
+  <h2>Unconfirmed account</h2>
+  <p class="muted">
+    Made when a payment was recorded from someone who hasn't signed up. It has
+    no email or password, so nobody can sign in to it, but it holds their
+    payments ({{ payment_count }} so far) and shows up in every list.
+  </p>
+  <p class="muted">
+    Once they sign up, link this account to their new one: everything recorded
+    here moves to their account, and this one is removed.
+  </p>
+  <a class="button" href="{% url 'member_link' member.pk %}">Link to their real account</a>
+</section>
+{% endif %}
 
 {% if row.status == "invited" or row.status == "unconfirmed" %}
 <section class="card">
@@ -77,6 +95,7 @@
   {% endif %}
 </section>
 
+{% if row.status != "unconfirmed_account" %}
 <section class="card">
   <h2>Role</h2>
   {% if row.is_superuser %}
@@ -95,6 +114,7 @@
     <a class="button secondary" href="{% url 'member_role' member.pk %}">Make an admin</a>
   {% endif %}
 </section>
+{% endif %}
 
 {% if not is_self and not row.is_superuser %}
 <section class="card">

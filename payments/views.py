@@ -1,7 +1,7 @@
 """Payments: admins can look, superusers can also record and edit.
 
-- /payments/ lists payments, with the form for recording one on top for
-  superusers, so a run of payments can be entered one after another.
+- /payments/ lists payments. Superusers record a new one step by step from
+  /payments/new/ (wizard.py), which comes back here when it is done.
 - /payments/<id>/ shows one payment and its history; superusers edit it there.
 - /payments/changes/ is the history of every payment, for auditing.
 
@@ -15,13 +15,13 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.formats import date_format
 
 from accounts.context_processors import display_name
-from accounts.members import admin_required, is_active_superuser, label
+from accounts.members import admin_required, is_active_superuser
+from accounts.models import UnconfirmedAccount
 
 from . import history
-from .forms import PaymentEditForm, PaymentForm
+from .forms import PaymentEditForm
 from .models import Payment, PaymentChange
 
 RECENT = 100
@@ -33,8 +33,12 @@ def _suggestions():
     club's size (hundreds at most) sending the whole list beats a search
     request per keystroke, and matching stays instant on a slow phone."""
     users = get_user_model().objects.order_by("first_name", "last_name", "email")
+    unconfirmed = set(UnconfirmedAccount.objects.values_list("user_id", flat=True))
     return [
-        {"id": user.pk, "name": display_name(user), "email": user.email, "active": user.is_active}
+        {
+            "id": user.pk, "name": display_name(user), "email": user.email,
+            "active": user.is_active, "unconfirmed": user.pk in unconfirmed,
+        }
         for user in users
     ]
 
@@ -51,13 +55,6 @@ def _apply(payment, data):
     payment.note = data["note"].strip()
 
 
-def _summary(payment):
-    return (
-        f"${payment.amount} from {payment.payer_name} "
-        f"({payment.get_method_display()}, {date_format(payment.paid_on, 'M j, Y')})"
-    )
-
-
 def _entries(changes):
     return [{"change": change, "lines": history.lines(change)} for change in changes]
 
@@ -65,25 +62,11 @@ def _entries(changes):
 @admin_required
 def payments(request):
     can_record = is_active_superuser(request.user)
-    if request.method == "POST" and not can_record:
-        raise PermissionDenied
-    form = PaymentForm(request.POST or None) if can_record else None
-    if request.method == "POST" and form.is_valid():
-        payment = Payment(recorded_by=request.user, recorded_by_label=label(request.user))
-        _apply(payment, form.cleaned_data)
-        with transaction.atomic():
-            payment.save()
-            history.record_created(request.user, payment)
-        messages.success(request, f"Recorded {_summary(payment)}.")
-        # Redirect, so reloading the page can't record the payment twice.
-        return redirect("payments")
-    recent = Payment.objects.annotate(
+    recent = Payment.objects.select_related("method").annotate(
         edits=Count("changes", filter=Q(changes__action=PaymentChange.Action.EDITED)),
     )[:RECENT]
     return render(request, "payments/payments.html", {
-        "form": form,
         "can_record": can_record,
-        "suggestions": _suggestions() if can_record else None,
         "recent": recent,
         "recent_limit": RECENT,
         "total_count": Payment.objects.count(),
@@ -92,13 +75,16 @@ def payments(request):
 
 @admin_required
 def payment_detail(request, payment_id):
-    payment = get_object_or_404(Payment.objects.select_related("member"), pk=payment_id)
+    payment = get_object_or_404(Payment.objects.select_related("member", "method"), pk=payment_id)
     can_edit = is_active_superuser(request.user)
     if request.method == "POST" and not can_edit:
         raise PermissionDenied
     form = None
     if can_edit:
-        form = PaymentEditForm(request.POST) if request.method == "POST" else PaymentEditForm.for_payment(payment)
+        if request.method == "POST":
+            form = PaymentEditForm(request.POST, current_method=payment.method_id)
+        else:
+            form = PaymentEditForm.for_payment(payment)
     if request.method == "POST" and form.is_valid():
         before = history.snapshot(payment)
         _apply(payment, form.cleaned_data)
