@@ -33,6 +33,20 @@
     });
   }
 
+  // The step's main field (the amount, the method) is focused every time
+  // the step is shown. `autofocus` alone is skipped when the browser brings
+  // the page back from its cache (Back, switching apps), and the amount is
+  // selected so typing replaces it.
+  const first = form && form.querySelector("[autofocus]");
+  if (first) {
+    const focusFirst = () => {
+      first.focus();
+      if (first.select && first.value) first.select();
+    };
+    focusFirst();
+    window.addEventListener("pageshow", focusFirst);
+  }
+
   // --- Step 1: who paid ----------------------------------------------------
 
   const search = document.getElementById("who_search");
