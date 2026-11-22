@@ -370,9 +370,10 @@ hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
   white-space: nowrap;
 }
 
-.pill-admin, .tabs .pill.on { border-color: var(--pitch); background: var(--pitch); color: #fff; }
-.pill-deactivated { border-color: var(--bad); color: var(--bad); }
-.pill-unconfirmed_account { border-color: var(--dev); color: var(--dev); }
+/* `form span` (help text) would otherwise grey out a pill inside a form. */
+.pill-admin, .tabs .pill.on, form span.pill-admin { border-color: var(--pitch); background: var(--pitch); color: #fff; }
+.pill-deactivated, form span.pill-deactivated { border-color: var(--bad); color: var(--bad); }
+.pill-unconfirmed_account, form span.pill-unconfirmed_account { border-color: var(--dev); color: var(--dev); }
 
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 0.9375rem; }
 .facts dt { color: var(--muted); }
