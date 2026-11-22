@@ -189,7 +189,7 @@ class StepTests(WizardTestCase):
         response = self.client.post(WHO, {"member": str(self.ann.pk)})
         self.assertRedirects(response, AMOUNT)
         response = self.client.get(AMOUNT)
-        self.assertContains(response, "How much did Ann Smith pay?")
+        self.assertContains(response, "<h1>Ann Smith</h1>", html=True)
         # The steps show who was picked.
         self.assertContains(response, '<span class="step-summary">Ann Smith</span>', html=True)
 
@@ -288,7 +288,7 @@ class RecordTests(WizardTestCase):
         self.assertEqual(self.client.post(WHO, {"new_name": "  Bob   the  Guest "}).status_code, 302)
         # Nobody is added until the payment is recorded.
         self.assertFalse(UnconfirmedAccount.objects.exists())
-        self.assertContains(self.client.get(AMOUNT), "How much did Bob the Guest pay?")
+        self.assertContains(self.client.get(AMOUNT), "<h1>Bob the Guest</h1>", html=True)
         self.client.post(AMOUNT, {"amount": "12"})
         self.client.post(DETAILS, {"method": str(method("Cash").pk), "paid_on": timezone.localdate().isoformat()})
         self.assertContains(self.client.get(REVIEW), "New, unconfirmed")

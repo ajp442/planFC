@@ -3,7 +3,7 @@
 <form method="post" class="card stack" id="wizard_form">
   {% csrf_token %}
   <input type="hidden" name="goto" value="">
-  <h1>How much did {{ draft.payer_name }} pay?</h1>
+  <h1>{{ draft.payer_name }}</h1>
   {{ form.non_field_errors }}
   <p>
     <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
