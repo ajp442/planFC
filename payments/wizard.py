@@ -32,6 +32,7 @@ from accounts.models import UnconfirmedAccount
 from . import history
 from .forms import AmountForm, DetailsForm, NewMemberForm, NoteForm
 from .models import Payment, PaymentMethod
+from .money import money
 
 User = get_user_model()
 
@@ -125,7 +126,7 @@ class Draft:
         if step == "who":
             return self.payer_name()
         if step == "amount":
-            return f"${self.amount():.2f}"
+            return money(self.amount())
         if step == "details":
             return f"{self.method()} · {date_format(self.paid_on(), 'M j')}"
         return ""
@@ -275,7 +276,7 @@ def review(request):
         draft.clear()
         messages.success(
             request,
-            f"Recorded ${payment.amount} from {payment.payer_name} "
+            f"Recorded {money(payment.amount)} from {payment.payer_name} "
             f"({payment.method}, {date_format(payment.paid_on, 'M j, Y')}).",
         )
         # The list, so the new payment can be checked at the top of it.

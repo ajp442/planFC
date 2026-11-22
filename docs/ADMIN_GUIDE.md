@@ -331,7 +331,9 @@ straight back to Review.
      then on they're in every list like anyone else, and their payments
      appear under their name. When they sign up, an admin
      [links the two accounts](#linking-an-unconfirmed-account).
-2. **Amount** in dollars, e.g. `12` or `24.50`. Enter goes on.
+2. **Amount** in dollars, e.g. `12` or `24.50`. Enter goes on. For a
+   refund, or to correct something in the other direction, enter a negative
+   amount, e.g. `-5`. It shows in red as **-$5.00**. Zero isn't accepted.
 3. **Method & date.** Pick the method from the list (superusers can change
    the list: see [Payment methods](#payment-methods)). **Date paid** is today
    unless you change it. Use the day the money arrived, not the day you're

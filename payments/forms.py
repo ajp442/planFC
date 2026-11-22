@@ -14,14 +14,14 @@ NEW_NAME_MAX = 300
 
 
 def amount_field():
+    # No inputmode="decimal": the iPhone's decimal keypad has no minus key,
+    # and a refund or correction needs one.
     return forms.DecimalField(
         label="Amount ($)",
         max_digits=8,
         decimal_places=2,
-        min_value=Decimal("0.01"),
-        widget=forms.NumberInput(attrs={
-            "inputmode": "decimal", "step": "0.01", "min": "0.01", "placeholder": "0.00",
-        }),
+        help_text="Negative for a refund or a correction the other way, e.g. -5.",
+        widget=forms.NumberInput(attrs={"step": "0.01", "placeholder": "0.00"}),
     )
 
 
@@ -47,6 +47,8 @@ def method_field(current=None):
 
 
 def clean_amount(amount):
+    if amount == 0:
+        raise ValidationError("Enter an amount other than zero.")
     # "7" becomes 7.00, so it reads the same everywhere it is shown.
     return amount.quantize(Decimal("0.01"))
 

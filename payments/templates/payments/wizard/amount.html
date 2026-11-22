@@ -8,6 +8,7 @@
   <p>
     <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
     {{ form.amount }}
+    <span class="helptext">{{ form.amount.help_text }}</span>
     {{ form.amount.errors }}
   </p>
   <button type="submit">Next</button>

@@ -209,7 +209,7 @@ class StepTests(WizardTestCase):
 
     def test_refuses_bad_amounts(self):
         self.client.post(WHO, {"member": str(self.ann.pk)})
-        for amount in ("", "0", "-5", "1.005", "ten", "1000000"):
+        for amount in ("", "0", "-0", "0.00", "1.005", "-1.005", "ten", "1000000", "-1000000"):
             with self.subTest(amount):
                 response = self.client.post(AMOUNT, {"amount": amount})
                 self.assertEqual(response.status_code, 200)
@@ -259,7 +259,7 @@ class StepTests(WizardTestCase):
         self.fill_all()
         self.assertRedirects(self.client.post(AMOUNT, {"amount": "30", "goto": "who"}), WHO)
         self.assertEqual(self.draft()["amount"], "30.00")
-        self.assertRedirects(self.client.post(AMOUNT, {"amount": "-1", "goto": "details"}), DETAILS)
+        self.assertRedirects(self.client.post(AMOUNT, {"amount": "0", "goto": "details"}), DETAILS)
         self.assertEqual(self.draft()["amount"], "30.00")
 
     def test_a_locked_step_cant_be_jumped_to(self):
@@ -339,12 +339,34 @@ class RecordTests(WizardTestCase):
         record(self.client, member=self.ann, paid_on=earlier)
         self.assertEqual(Payment.objects.get().paid_on, earlier)
 
-    def test_the_database_refuses_a_non_positive_amount(self):
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Payment.objects.create(
-                payer_name="X", amount=Decimal("0"), paid_on=timezone.localdate(),
+    def test_records_a_negative_amount_for_a_refund_or_correction(self):
+        response = record(self.client, member=self.ann, amount="-5", note="Refund: game cancelled")
+        payment = Payment.objects.get()
+        self.assertEqual(payment.amount, Decimal("-5.00"))
+        self.assertEqual(PaymentChange.objects.get().values["amount"], "-$5.00")
+        self.assertContains(self.client.get(response.url), "Recorded -$5.00 from Ann Smith")
+        self.assertContains(self.client.get(URL), "amount-negative")
+        detail = self.client.get(reverse("payment_detail", args=[payment.pk]))
+        self.assertContains(detail, "-$5.00")
+
+    def test_review_shows_a_negative_amount(self):
+        self.client.post(WHO, {"member": str(self.ann.pk)})
+        self.client.post(AMOUNT, {"amount": "-12.5"})
+        self.client.post(DETAILS, {"method": str(method("Cash").pk), "paid_on": timezone.localdate().isoformat()})
+        response = self.client.get(REVIEW)
+        self.assertContains(response, "-$12.50")
+        self.assertContains(response, "a refund or correction")
+
+    def test_the_database_refuses_a_zero_amount_but_not_a_negative_one(self):
+        def create(amount):
+            return Payment.objects.create(
+                payer_name="X", amount=Decimal(amount), paid_on=timezone.localdate(),
                 method=method("Cash"), recorded_by_label="test",
             )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            create("0")
+        self.assertEqual(create("-3.00").amount, Decimal("-3.00"))
 
     def test_payment_outlives_the_members_account(self):
         record(self.client, member=self.ann)
@@ -556,13 +578,20 @@ class HistoryTests(TestCase):
         self.assertEqual(self.payment.created_at, created_at)
         self.assertEqual(self.payment.recorded_by_label, "Root User <root@example.com>")
 
+    def test_an_amount_can_be_corrected_to_a_negative_one(self):
+        self.edit(amount="-12", reason="Was a refund")
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.amount, Decimal("-12.00"))
+        change = PaymentChange.objects.get(action=PaymentChange.Action.EDITED)
+        self.assertEqual(change.values["amount"], ["$12.00", "-$12.00"])
+
     def test_saving_without_changes_records_nothing(self):
         self.edit()
         self.assertFalse(PaymentChange.objects.filter(action=PaymentChange.Action.EDITED).exists())
 
     def test_edit_is_validated(self):
         for name, data in {
-            "negative": {"amount": "-1"},
+            "zero": {"amount": "0"},
             "future": {"paid_on": (timezone.localdate() + timedelta(days=1)).isoformat()},
             "no method": {"method": ""},
             "deleted account": {"member": "999999"},

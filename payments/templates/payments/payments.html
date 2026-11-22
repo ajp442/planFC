@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load payments_extras %}
 {% block head_title %}Payments{% endblock %}
 {% block content %}
 <div class="card" id="recent_payments">
@@ -18,7 +19,7 @@
         <a class="payment-link" href="{% url 'payment_detail' payment.pk %}">
           <div class="payment-line">
             <strong class="payment-name">{{ payment.payer_name }}</strong>
-            <strong class="payment-amount">${{ payment.amount }}</strong>
+            <strong class="payment-amount{% if payment.amount < 0 %} amount-negative{% endif %}">{{ payment.amount|money }}</strong>
           </div>
           <div class="muted">
             {{ payment.method }} · paid {{ payment.paid_on|date:"M j, Y" }}

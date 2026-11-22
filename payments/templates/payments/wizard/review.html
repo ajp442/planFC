@@ -1,4 +1,5 @@
 {% extends "payments/wizard/_base.html" %}
+{% load payments_extras %}
 {% block step %}
 <form method="post" class="card stack" id="wizard_form">
   {% csrf_token %}
@@ -16,7 +17,7 @@
       <a class="review-change" href="{% url 'payment_new_who' %}" data-goto="who">Change</a>
     </dd>
     <dt>Amount</dt>
-    <dd>${{ amount }} <a class="review-change" href="{% url 'payment_new_amount' %}" data-goto="amount">Change</a></dd>
+    <dd><span{% if amount < 0 %} class="amount-negative"{% endif %}>{{ amount|money }}</span>{% if amount < 0 %} <span class="muted small">(a refund or correction)</span>{% endif %} <a class="review-change" href="{% url 'payment_new_amount' %}" data-goto="amount">Change</a></dd>
     <dt>Method</dt>
     <dd>{{ method }} <a class="review-change" href="{% url 'payment_new_details' %}" data-goto="details">Change</a></dd>
     <dt>Date paid</dt>

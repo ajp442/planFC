@@ -195,6 +195,8 @@ Each milestone should be complete and well vetted before moving onto the next mi
     apps (games, later) move their own records through the same signal
     (`accounts.signals.unconfirmed_account_linked`).
   - Payment methods are a table superusers edit in Database admin instead of fixed choices.
+  - Amounts may be negative, for refunds and corrections in the other direction (shown as
+    -$5.00, in red). Only zero is refused, by the form and by the database.
 - **Next for manual payments**, not built yet:
   - Members see their own payment history and balance. This needs games and their costs, so it
     belongs with the ledger.

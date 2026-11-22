@@ -10,6 +10,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from .money import money
+
 
 class PaymentMethod(models.Model):
     """How money arrives: Venmo, Zelle, cash and so on.
@@ -54,7 +56,8 @@ class Payment(models.Model):
     )
     # The member's name when linked, otherwise exactly what was typed.
     payer_name = models.CharField(max_length=150)
-    # Decimal, never float: balances must add up to the cent.
+    # Decimal, never float: balances must add up to the cent. Negative for a
+    # refund or a correction in the other direction; never zero.
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     paid_on = models.DateField()
     method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name="payments")
@@ -72,13 +75,13 @@ class Payment(models.Model):
         ordering = ["-paid_on", "-created_at", "-pk"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=Decimal("0")),
-                name="payment_amount_positive",
+                condition=~models.Q(amount=Decimal("0")),
+                name="payment_amount_not_zero",
             ),
         ]
 
     def __str__(self):
-        return f"${self.amount} from {self.payer_name} ({self.method}, {self.paid_on})"
+        return f"{money(self.amount)} from {self.payer_name} ({self.method}, {self.paid_on})"
 
 
 class PaymentChange(models.Model):

@@ -473,6 +473,8 @@ form .suggestions .suggestion-email { overflow: hidden; text-overflow: ellipsis;
 .payment-note { margin: 4px 0; overflow-wrap: anywhere; }
 .payment-list .pill { display: inline-block; margin-left: 6px; }
 .pill-unlinked { border-color: var(--dev); color: var(--dev); }
+/* A refund or correction the other way. */
+.amount-negative, form span.amount-negative { color: var(--bad); }
 .small { font-size: 0.8125rem; }
 
 /* A payment in the list opens its page. */

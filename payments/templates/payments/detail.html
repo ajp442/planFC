@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static payments_extras %}
 {% block head_title %}Payment #{{ payment.pk }}{% endblock %}
 {% block content %}
 <p class="back"><a href="{% url 'payments' %}">‹ Payments</a></p>
@@ -7,7 +7,7 @@
 <div class="card">
   <div class="payment-line">
     <h1 class="payment-name">{{ payment.payer_name }}</h1>
-    <h1 class="payment-amount">${{ payment.amount }}</h1>
+    <h1 class="payment-amount{% if payment.amount < 0 %} amount-negative{% endif %}">{{ payment.amount|money }}</h1>
   </div>
   <dl class="facts">
     <dt>Account</dt>

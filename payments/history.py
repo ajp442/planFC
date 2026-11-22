@@ -6,6 +6,7 @@ from django.utils.formats import date_format
 from accounts.members import label
 
 from .models import PaymentChange
+from .money import money
 
 Action = PaymentChange.Action
 
@@ -26,7 +27,7 @@ def snapshot(payment):
     return {
         "payer_name": payment.payer_name,
         "member": label(payment.member) if payment.member else "",
-        "amount": f"${payment.amount:.2f}",
+        "amount": money(payment.amount),
         "paid_on": date_format(payment.paid_on, "M j, Y"),
         "method": payment.method.name,
         "note": payment.note,
